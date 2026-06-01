@@ -11,6 +11,7 @@ import { lerp, makeRng, hexA } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
 import { SpatialGrid } from '../engine/grid.js';
 import { Particles } from '../engine/particles.js';
+import { Floaters } from '../engine/floaters.js';
 import { ColorField } from '../systems/colorfield.js';
 import { Player } from '../entities/player.js';
 import { Enemy } from '../entities/enemy.js';
@@ -22,6 +23,7 @@ import { createWeapons } from '../systems/weapons.js';
 import { rollChoices } from '../systems/upgrades.js';
 import { createUpgradeOverlay } from './upgrade.js';
 import { renderPause } from './pause.js';
+import { createOptionsOverlay } from './options.js';
 import { drawHud } from '../ui/hud.js';
 import { fillBar } from '../ui/widgets.js';
 
@@ -38,6 +40,7 @@ export function createGameScene() {
   let slowmoT = 0;
   let completeT = 0;
   let upgrade = null;
+  let pauseOptions = null;
   let pendingLevels = 0;
   let boss = null;
   let bossSpawned = false;
@@ -49,6 +52,7 @@ export function createGameScene() {
   const enemyBullets = new Pool(() => new Bullet(), CONFIG.enemyBulletMax);
   const orbs = new Pool(() => new Orb(), CONFIG.orbMax);
   const particles = new Particles(CONFIG.particles.max);
+  const floaters = new Floaters(48);
   const colorfield = new ColorField(CONFIG.arena.width, CONFIG.arena.height);
   const grid = new SpatialGrid(CONFIG.arena.width, CONFIG.arena.height, CONFIG.grid.cell);
   const spawner = createSpawner();
@@ -71,14 +75,21 @@ export function createGameScene() {
     xp: 0,
     level: 1,
     xpNext: xpForLevel(1),
-    mouseWorld: null,
+    combo: 0,
+    comboTimer: 0,
+    bestCombo: 0,
+    score: 0,
+    mouseWorld: { x: 0, y: 0 },
   };
   const weapons = createWeapons(world);
   world.weapons = weapons;
 
-  // Hooks SFX (déclenchés par les systèmes).
+  // Hooks SFX / juice (déclenchés par les systèmes).
   world.onFire = () => Audio.shoot();
-  world.onNova = () => Audio.nova();
+  world.onNova = () => {
+    Audio.nova();
+    Render.addShake(0.22);
+  };
   world.onBossShoot = () => Audio.bossShoot();
   world.onBossSpawn = () => Audio.bossSpawn();
   world.onBossDeath = () => Audio.bossDeath();
@@ -94,10 +105,13 @@ export function createGameScene() {
     enemyBullets.clear();
     orbs.clear();
     particles.clear();
+    floaters.clear();
     boss = null;
     world.boss = null;
     bossSpawned = false;
     bossActive = false;
+    world.combo = 0;
+    world.comboTimer = 0;
     spawner.reset(lvl.spawn);
     colorfield.reset(world.palette, lvl.killsToFull);
     player.x = player.px = CONFIG.arena.width / 2;
@@ -148,6 +162,10 @@ export function createGameScene() {
   function killEnemy(e) {
     e.alive = false;
     world.kills++;
+    world.combo++;
+    world.comboTimer = CONFIG.comboWindow;
+    if (world.combo > world.bestCombo) world.bestCombo = world.combo;
+    world.score += CONFIG.scorePerKill * world.combo;
     const n = CONFIG.perf ? CONFIG.particles.killBurstPerf : CONFIG.particles.killBurst;
     particles.burst(e.x, e.y, n, world.palette.colors, world.rng);
     orbs.obtain().init(e.x, e.y, e.xp);
@@ -158,7 +176,13 @@ export function createGameScene() {
   function damageEnemy(e, dmg) {
     e.hp -= dmg;
     e.hitFlash = 0.08;
+    if (!CONFIG.perf) floaters.spawn(e.x, e.y - e.radius, String(Math.round(dmg)), '#ffffff', 13, 0.6);
     if (e.hp <= 0) killEnemy(e);
+  }
+
+  function playerHurt() {
+    Audio.hit();
+    Render.addShake(0.3);
   }
 
   function spawnBoss() {
@@ -171,6 +195,7 @@ export function createGameScene() {
     boss = new Boss();
     boss.init(world.levelIndex, bx, by);
     world.boss = boss;
+    Render.addShake(0.6);
     if (world.onBossSpawn) world.onBossSpawn();
   }
 
@@ -186,6 +211,7 @@ export function createGameScene() {
     boss = null;
     world.boss = null;
     bossActive = false;
+    Render.addShake(0.85);
     if (world.onBossDeath) world.onBossDeath();
   }
 
@@ -193,6 +219,7 @@ export function createGameScene() {
     if (!boss) return;
     boss.hp -= dmg;
     boss.hitFlash = 0.08;
+    if (!CONFIG.perf) floaters.spawn(boss.x, boss.y - boss.radius, String(Math.round(dmg)), CONFIG.danger, 16, 0.6);
     if (boss.hp <= 0) killBoss();
   }
 
@@ -280,6 +307,15 @@ export function createGameScene() {
 
   function stepWorld(dt) {
     world.time += dt;
+    // Visée : applique le réglage et met à jour la position monde de la souris.
+    player.aimMode = CONFIG.aimMode;
+    Render.screenToWorld(Input.mouse.x, Input.mouse.y, world.mouseWorld);
+    // Combo : décroissance.
+    if (world.comboTimer > 0) {
+      world.comboTimer -= dt;
+      if (world.comboTimer <= 0) world.combo = 0;
+    }
+
     player.update(dt);
     spawner.update(dt, world);
     weapons.update(dt);
@@ -322,13 +358,13 @@ export function createGameScene() {
       const rr = player.radius + e.radius;
       const dx = e.x - player.x;
       const dy = e.y - player.y;
-      if (dx * dx + dy * dy < rr * rr && player.takeDamage(e.damage)) Audio.hit();
+      if (dx * dx + dy * dy < rr * rr && player.takeDamage(e.damage)) playerHurt();
     });
     if (boss) {
       const rr = player.radius + boss.radius;
       const dx = boss.x - player.x;
       const dy = boss.y - player.y;
-      if (dx * dx + dy * dy < rr * rr && player.takeDamage(boss.contactDamage)) Audio.hit();
+      if (dx * dx + dy * dy < rr * rr && player.takeDamage(boss.contactDamage)) playerHurt();
     }
 
     // Projectiles ennemis -> joueur.
@@ -338,12 +374,13 @@ export function createGameScene() {
       const dx = b.x - player.x;
       const dy = b.y - player.y;
       if (dx * dx + dy * dy < rr * rr) {
-        if (player.takeDamage(b.damage)) Audio.hit();
+        if (player.takeDamage(b.damage)) playerHurt();
         b.alive = false;
       }
     });
 
     particles.update(dt);
+    floaters.update(dt);
     enemies.sweep();
     bullets.sweep();
     enemyBullets.sweep();
@@ -373,6 +410,7 @@ export function createGameScene() {
     particles.render(Render);
     weapons.render(Render, ix, iy);
     player.render(Render, alpha);
+    floaters.render(Render);
 
     Render.end();
   }
@@ -431,15 +469,27 @@ export function createGameScene() {
       world.xp = 0;
       world.level = 1;
       world.xpNext = xpForLevel(1);
+      world.bestCombo = 0;
+      world.score = 0;
       pendingLevels = 0;
+      pauseOptions = null;
       loadLevel(0);
     },
 
     update(dt) {
-      if ((mode === 'play' || mode === 'paused') && Input.pressed('KeyP', 'Escape')) {
-        mode = mode === 'paused' ? 'play' : 'paused';
+      if (mode === 'paused') {
+        if (pauseOptions) {
+          pauseOptions.update(dt);
+          return;
+        }
+        if (Input.pressed('KeyP', 'Escape')) mode = 'play';
+        else if (Input.pressed('KeyO')) pauseOptions = createOptionsOverlay(() => (pauseOptions = null), () => app.gotoMenu());
+        return;
       }
-      if (mode === 'paused') return;
+      if (mode === 'play' && Input.pressed('KeyP', 'Escape')) {
+        mode = 'paused';
+        return;
+      }
 
       if (mode === 'complete') {
         completeT += dt;
@@ -478,7 +528,10 @@ export function createGameScene() {
       if (boss) drawBossBar();
 
       if (mode === 'upgrade') upgrade.render(Render);
-      if (mode === 'paused') renderPause(Render);
+      if (mode === 'paused') {
+        if (pauseOptions) pauseOptions.render(Render);
+        else renderPause(Render);
+      }
       if (mode === 'complete') drawComplete(Render);
     },
   };

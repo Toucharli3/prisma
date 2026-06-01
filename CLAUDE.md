@@ -69,5 +69,8 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
       SFX oscillateurs (tir, kill, ramassage, dégât, level-up, nova, boss, victoire,
       game over, UI) + boucle musicale synthé générative (scheduler lookahead).
       Contexte créé au 1er geste ; volumes réglables ; mute (touche M).
-- [ ] Phase 8 — Polish & juice
+- [x] **Phase 8 — Polish & juice** : screen shake (trauma), chiffres de dégâts
+      flottants, combo + score, vignette + scanlines (off en mode perf), menu
+      principal animé (titre dégradé), transitions en fondu, visée souris,
+      overlay d'options (visée, perf, volumes, mute) depuis menu et pause.
 - [ ] Phase 9 — Méta-progression & optimisation finale

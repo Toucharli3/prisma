@@ -50,14 +50,32 @@ export function drawHud(R, world) {
   ctx.textBaseline = 'top';
   ctx.fillText(`${world.palette.name.toUpperCase()} · NIVEAU ${world.level}`, vw / 2, gy + gh + 7);
 
-  // Chrono (haut-droite).
+  // Combo (centre) — apparaît à partir de ×3, avec un pop quand récent.
+  if (world.combo >= 3) {
+    const pulse = 1 + 0.3 * Math.max(0, world.comboTimer / CONFIG.comboWindow - 0.6);
+    ctx.save();
+    ctx.translate(vw / 2, 106);
+    ctx.scale(pulse, pulse);
+    ctx.fillStyle = world.palette.colors[2];
+    ctx.font = `900 26px ${FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`×${world.combo}`, 0, 0);
+    ctx.restore();
+  }
+
+  // Chrono + score (haut-droite).
   const t = world.time;
   const mm = Math.floor(t / 60);
   const ss = Math.floor(t % 60);
   ctx.textAlign = 'right';
+  ctx.textBaseline = 'top';
   ctx.fillStyle = CONFIG.textSecondary;
   ctx.font = `600 15px ${FONT}`;
   ctx.fillText(`${mm}:${ss.toString().padStart(2, '0')}`, vw - 16, 12);
+  ctx.font = `700 13px ${FONT}`;
+  ctx.fillStyle = CONFIG.textPrimary;
+  ctx.fillText(`SCORE ${world.score}`, vw - 16, 32);
 
   // Barre de PV (bas-gauche).
   const y = vh - 34;
@@ -73,11 +91,11 @@ export function drawHud(R, world) {
     ctx.fillStyle = CONFIG.textSecondary;
     ctx.font = `600 11px ${FONT}`;
     ctx.textAlign = 'right';
-    ctx.textBaseline = 'top';
+    ctx.textBaseline = 'bottom';
     ctx.fillText(
       `ennemis:${world.enemies.count} tirs:${world.bullets.count} orbes:${world.orbs.count} kills:${world.kills}`,
       vw - 16,
-      34
+      vh - 14
     );
   }
 }

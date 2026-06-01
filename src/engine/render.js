@@ -18,6 +18,10 @@ export const Render = {
   _gridTile: null,
   _gridPattern: null,
   _spriteCache: new Map(), // halos pré-rendus (clé -> {canvas,size,half})
+  shakeTrauma: 0, // screen shake (trauma au carré -> amplitude)
+  _lastBeginTime: 0,
+  _vignette: null,
+  _scanPattern: null,
 
   init(canvasEl) {
     this.canvas = canvasEl;
@@ -25,6 +29,7 @@ export const Render = {
     this.resize();
     window.addEventListener('resize', () => this.resize());
     this._buildGrid();
+    this._buildScanlines();
     // Caméra centrée sur l'arène par défaut.
     this.camera.x = CONFIG.arena.width / 2;
     this.camera.y = CONFIG.arena.height / 2;
@@ -41,6 +46,38 @@ export const Render = {
     this.canvas.style.height = this.viewH + 'px';
     // Le pattern doit être recréé après changement de contexte/taille.
     if (this._gridTile) this._gridPattern = this.ctx.createPattern(this._gridTile, 'repeat');
+    this._buildVignette();
+  },
+
+  // Vignette pré-rendue (dépend de la taille de la fenêtre).
+  _buildVignette() {
+    const c = document.createElement('canvas');
+    c.width = this.viewW;
+    c.height = this.viewH;
+    const t = c.getContext('2d');
+    const cx = this.viewW / 2;
+    const cy = this.viewH / 2;
+    const g = t.createRadialGradient(cx, cy, Math.min(this.viewW, this.viewH) * 0.36, cx, cy, Math.max(this.viewW, this.viewH) * 0.72);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.5)');
+    t.fillStyle = g;
+    t.fillRect(0, 0, this.viewW, this.viewH);
+    this._vignette = c;
+  },
+
+  // Pattern de scanlines (1 ligne sombre toutes les 3 px).
+  _buildScanlines() {
+    const c = document.createElement('canvas');
+    c.width = 1;
+    c.height = 3;
+    const t = c.getContext('2d');
+    t.fillStyle = 'rgba(0,0,0,0.16)';
+    t.fillRect(0, 2, 1, 1);
+    this._scanPattern = this.ctx.createPattern(c, 'repeat');
+  },
+
+  addShake(amount) {
+    this.shakeTrauma = Math.min(1, this.shakeTrauma + amount);
   },
 
   // Pré-rend une tuile de grille une seule fois (calque statique).
@@ -78,6 +115,15 @@ export const Render = {
     ctx.fillStyle = CONFIG.bgColor;
     ctx.fillRect(0, 0, this.viewW, this.viewH);
 
+    // Screen shake : décroissance + amplitude = trauma².
+    const now = performance.now();
+    const sdt = this._lastBeginTime ? Math.min(0.1, (now - this._lastBeginTime) / 1000) : 0;
+    this._lastBeginTime = now;
+    this.shakeTrauma = Math.max(0, this.shakeTrauma - sdt * 1.8);
+    const mag = this.shakeTrauma * this.shakeTrauma * CONFIG.maxShake;
+    this.camera.shakeX = (Math.random() * 2 - 1) * mag;
+    this.camera.shakeY = (Math.random() * 2 - 1) * mag;
+
     const camX = this.camera.x + this.camera.shakeX;
     const camY = this.camera.y + this.camera.shakeY;
     this._tx = this.viewW / 2 - camX;
@@ -111,6 +157,24 @@ export const Render = {
   // Ferme la frame : repasse en espace écran pour dessiner l'UI.
   end() {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  },
+
+  // Post-traitement plein écran (vignette + scanlines, sauf mode perf).
+  postFx() {
+    const ctx = this.ctx;
+    if (this._vignette) ctx.drawImage(this._vignette, 0, 0);
+    if (!CONFIG.perf && this._scanPattern) {
+      ctx.fillStyle = this._scanPattern;
+      ctx.fillRect(0, 0, this.viewW, this.viewH);
+    }
+  },
+
+  // Voile de transition (fondu). alpha 0..1.
+  drawFade(alpha) {
+    if (alpha <= 0) return;
+    const ctx = this.ctx;
+    ctx.fillStyle = `rgba(6,6,10,${alpha})`;
+    ctx.fillRect(0, 0, this.viewW, this.viewH);
   },
 
   // --- Cache de sprites offscreen ---

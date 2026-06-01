@@ -4,8 +4,14 @@
 export const CONFIG = {
   // --- Debug / perf ---
   debug: true, // overlay FPS + infos (désactivable)
-  perf: false, // mode performance : réduit particules, désactive scanlines (Phase 8)
+  perf: false, // mode performance : réduit particules, désactive scanlines/floaters
   maxDPR: 1.5, // plafond devicePixelRatio (évite le sur-rendu HiDPI sur GPU intégré)
+
+  // --- Juice / options ---
+  maxShake: 24, // amplitude max du screen shake (px)
+  comboWindow: 2.4, // délai (s) avant reset du combo
+  scorePerKill: 10,
+  aimMode: 'auto', // 'auto' | 'mouse' (réglage, appliqué au démarrage de partie)
 
   // --- Couleurs de base / UI (DA section 2) ---
   bgColor: '#0a0a0f',
