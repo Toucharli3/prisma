@@ -1,0 +1,15 @@
+{
+  "name": "prisma",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "PRISMA — survival-arène top-down néon vectoriel en Canvas 2D",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.0.0"
+  }
+}
