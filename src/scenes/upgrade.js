@@ -4,6 +4,7 @@
 
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
+import { Audio } from '../engine/audio.js';
 import { CONFIG } from '../config.js';
 import { hexA, TAU } from '../engine/math.js';
 import { roundRect, wrapText } from '../ui/widgets.js';
@@ -28,7 +29,13 @@ export function createUpgradeOverlay(world, choices, onPick) {
   }
 
   function pick() {
+    Audio.uiSelect();
     onPick(choices[sel]);
+  }
+
+  function move(d) {
+    sel = (sel + d + choices.length) % choices.length;
+    Audio.uiMove();
   }
 
   function drawCard(ctx, r, c, i, selected) {
@@ -91,7 +98,10 @@ export function createUpgradeOverlay(world, choices, onPick) {
       for (let i = 0; i < rects.length; i++) {
         const r = rects[i];
         if (m.x >= r.x && m.x <= r.x + r.w && m.y >= r.y && m.y <= r.y + r.h) {
-          sel = i;
+          if (sel !== i) {
+            sel = i;
+            Audio.uiMove();
+          }
           if (m.clicked) {
             pick();
             return;
@@ -99,8 +109,8 @@ export function createUpgradeOverlay(world, choices, onPick) {
         }
       }
 
-      if (Input.pressed('ArrowLeft', 'KeyA', 'KeyQ')) sel = (sel - 1 + choices.length) % choices.length;
-      if (Input.pressed('ArrowRight', 'KeyD')) sel = (sel + 1) % choices.length;
+      if (Input.pressed('ArrowLeft', 'KeyA', 'KeyQ')) move(-1);
+      if (Input.pressed('ArrowRight', 'KeyD')) move(1);
       if (Input.pressed('Digit1')) {
         sel = 0;
         pick();

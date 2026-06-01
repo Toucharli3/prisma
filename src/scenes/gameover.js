@@ -2,6 +2,7 @@
 // La transition vers une nouvelle partie passe par app.startGame().
 
 import { Render } from '../engine/render.js';
+import { Audio } from '../engine/audio.js';
 import { CONFIG } from '../config.js';
 
 export function createGameOverScene(stats = {}) {
@@ -12,6 +13,7 @@ export function createGameOverScene(stats = {}) {
     enter(_app) {
       app = _app;
       t = 0;
+      Audio.gameover();
     },
 
     update(dt) {

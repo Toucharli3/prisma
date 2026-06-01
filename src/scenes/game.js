@@ -5,6 +5,7 @@
 
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
+import { Audio } from '../engine/audio.js';
 import { CONFIG, PALETTES } from '../config.js';
 import { lerp, makeRng, hexA } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
@@ -75,11 +76,19 @@ export function createGameScene() {
   const weapons = createWeapons(world);
   world.weapons = weapons;
 
+  // Hooks SFX (déclenchés par les systèmes).
+  world.onFire = () => Audio.shoot();
+  world.onNova = () => Audio.nova();
+  world.onBossShoot = () => Audio.bossShoot();
+  world.onBossSpawn = () => Audio.bossSpawn();
+  world.onBossDeath = () => Audio.bossDeath();
+
   // --- Niveaux ---
   function loadLevel(index) {
     const lvl = CONFIG.levels[index];
     world.levelIndex = index;
     world.palette = PALETTES[index];
+    Audio.setBiome(index);
     enemies.clear();
     bullets.clear();
     enemyBullets.clear();
@@ -108,6 +117,7 @@ export function createGameScene() {
 
   // --- Progression / XP ---
   function gainXp(v) {
+    Audio.pickup();
     world.xp += v;
     while (world.xp >= world.xpNext) {
       world.xp -= world.xpNext;
@@ -121,6 +131,7 @@ export function createGameScene() {
   function startLevelUp() {
     mode = 'levelup';
     slowmoT = CONFIG.levelUp.slowmoTime;
+    Audio.levelup();
   }
 
   function openUpgrade() {
@@ -311,13 +322,13 @@ export function createGameScene() {
       const rr = player.radius + e.radius;
       const dx = e.x - player.x;
       const dy = e.y - player.y;
-      if (dx * dx + dy * dy < rr * rr) player.takeDamage(e.damage);
+      if (dx * dx + dy * dy < rr * rr && player.takeDamage(e.damage)) Audio.hit();
     });
     if (boss) {
       const rr = player.radius + boss.radius;
       const dx = boss.x - player.x;
       const dy = boss.y - player.y;
-      if (dx * dx + dy * dy < rr * rr) player.takeDamage(boss.contactDamage);
+      if (dx * dx + dy * dy < rr * rr && player.takeDamage(boss.contactDamage)) Audio.hit();
     }
 
     // Projectiles ennemis -> joueur.
@@ -327,7 +338,7 @@ export function createGameScene() {
       const dx = b.x - player.x;
       const dy = b.y - player.y;
       if (dx * dx + dy * dy < rr * rr) {
-        player.takeDamage(b.damage);
+        if (player.takeDamage(b.damage)) Audio.hit();
         b.alive = false;
       }
     });
@@ -450,6 +461,7 @@ export function createGameScene() {
       if (colorfield.complete) {
         mode = 'complete';
         completeT = 0;
+        Audio.levelComplete();
       }
     },
 

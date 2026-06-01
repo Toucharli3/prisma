@@ -1,6 +1,7 @@
 // victory.js — écran de victoire finale (après le niveau 5). Stylisé en Phase 8.
 
 import { Render } from '../engine/render.js';
+import { Audio } from '../engine/audio.js';
 import { CONFIG, PALETTES } from '../config.js';
 
 export function createVictoryScene(stats = {}) {
@@ -11,6 +12,7 @@ export function createVictoryScene(stats = {}) {
     enter(_app) {
       app = _app;
       t = 0;
+      Audio.victory();
     },
 
     update(dt) {

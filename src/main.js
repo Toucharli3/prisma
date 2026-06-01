@@ -5,6 +5,7 @@
 import { CONFIG } from './config.js';
 import { Render } from './engine/render.js';
 import { Input } from './engine/input.js';
+import { Audio } from './engine/audio.js';
 import { createLoop } from './engine/loop.js';
 import { createGameScene } from './scenes/game.js';
 import { createGameOverScene } from './scenes/gameover.js';
@@ -13,6 +14,7 @@ import { createVictoryScene } from './scenes/victory.js';
 const canvas = document.getElementById('game');
 Render.init(canvas);
 Input.init(canvas);
+Audio.init(); // contexte créé au 1er geste utilisateur
 
 // Contexte partagé passé à toutes les scènes.
 const app = {
@@ -29,6 +31,7 @@ const app = {
 
 const loop = createLoop({
   update(dt) {
+    if (Input.pressed('KeyM')) Audio.toggleMute(); // mute global
     if (app.scene.update) app.scene.update(dt);
     Input.endFrame();
   },
@@ -51,4 +54,7 @@ app.startGame();
 loop.start();
 
 // Handle de debug (uniquement en mode debug) pour l'inspection/tests.
-if (CONFIG.debug) window.__prisma = app;
+if (CONFIG.debug) {
+  window.__prisma = app;
+  window.__audio = Audio;
+}

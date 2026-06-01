@@ -65,6 +65,9 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
       difficulté croissante), pentagone tireur (+ projectiles ennemis), boss
       hexagone avec 3 patterns de tir (déclenché à ~78% et gate du 100%),
       enchaînement des niveaux (build conservé), écran de victoire final.
-- [ ] Phase 7 — Audio
+- [x] **Phase 7 — Audio** : `engine/audio.js` 100% procédural (Web Audio).
+      SFX oscillateurs (tir, kill, ramassage, dégât, level-up, nova, boss, victoire,
+      game over, UI) + boucle musicale synthé générative (scheduler lookahead).
+      Contexte créé au 1er geste ; volumes réglables ; mute (touche M).
 - [ ] Phase 8 — Polish & juice
 - [ ] Phase 9 — Méta-progression & optimisation finale
