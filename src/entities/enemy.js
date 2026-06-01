@@ -28,6 +28,15 @@ export class Enemy {
     this.speed = 100;
     this.damage = 5;
     this.xp = 1;
+    // Tireur (pentagone) :
+    this.behavior = 'chase';
+    this.preferredRange = 0;
+    this.shootCooldown = 0;
+    this.shootTimer = 0;
+    this.fireReady = false; // la scène lit ce flag pour générer un projectile ennemi
+    this.fireAngle = 0;
+    this.bulletSpeed = 0;
+    this.bulletDamage = 0;
   }
 
   init(def, x, y, hpScale = 1, speedScale = 1) {
@@ -40,6 +49,13 @@ export class Enemy {
     this.speed = def.speed * speedScale;
     this.damage = def.damage;
     this.xp = def.xp;
+    this.behavior = def.behavior || 'chase';
+    this.preferredRange = def.preferredRange || 0;
+    this.shootCooldown = def.shootCooldown || 0;
+    this.shootTimer = (def.shootCooldown || 0) * (0.4 + Math.random() * 0.6);
+    this.fireReady = false;
+    this.bulletSpeed = def.bulletSpeed || 0;
+    this.bulletDamage = def.bulletDamage || 0;
     this.x = this.px = x;
     this.y = this.py = y;
     this.sepx = 0;
@@ -55,12 +71,31 @@ export class Enemy {
     this.px = this.x;
     this.py = this.y;
 
-    // Direction de poursuite + séparation (déjà pondérée par la scène).
-    let vx = target.x - this.x;
-    let vy = target.y - this.y;
-    const d = Math.hypot(vx, vy) || 1;
-    vx = vx / d + this.sepx;
-    vy = vy / d + this.sepy;
+    const tx = target.x - this.x;
+    const ty = target.y - this.y;
+    const d = Math.hypot(tx, ty) || 1;
+    let dirx = tx / d;
+    let diry = ty / d;
+
+    if (this.behavior === 'shooter') {
+      // Garde ses distances : recule si trop près, tient sa position sinon.
+      if (d < this.preferredRange * 0.85) {
+        dirx = -dirx;
+        diry = -diry;
+      } else if (d < this.preferredRange * 1.15) {
+        dirx = 0;
+        diry = 0;
+      }
+      this.shootTimer -= dt;
+      if (this.shootTimer <= 0 && d < this.preferredRange * 1.4) {
+        this.fireReady = true;
+        this.fireAngle = Math.atan2(ty, tx);
+        this.shootTimer = this.shootCooldown;
+      }
+    }
+
+    let vx = dirx + this.sepx;
+    let vy = diry + this.sepy;
     const vl = Math.hypot(vx, vy) || 1;
     this.x += (vx / vl) * this.speed * dt;
     this.y += (vy / vl) * this.speed * dt;

@@ -8,6 +8,7 @@ import { Input } from './engine/input.js';
 import { createLoop } from './engine/loop.js';
 import { createGameScene } from './scenes/game.js';
 import { createGameOverScene } from './scenes/gameover.js';
+import { createVictoryScene } from './scenes/victory.js';
 
 const canvas = document.getElementById('game');
 Render.init(canvas);
@@ -43,6 +44,7 @@ app.loop = loop;
 // Transitions de scènes centralisées (évite les imports croisés entre scènes).
 app.startGame = (opts) => app.setScene(createGameScene(opts));
 app.gameOver = (stats) => app.setScene(createGameOverScene(stats));
+app.victory = (stats) => app.setScene(createVictoryScene(stats));
 
 // Démarre directement dans le jeu (le menu stylé arrive en Phase 8).
 app.startGame();

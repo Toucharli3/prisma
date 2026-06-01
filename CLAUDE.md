@@ -61,7 +61,10 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
       basse résolution peint par les kills, upscalé + lissé en taches douces +
       teinte ambiante globale), jauge de couleur HUD (`ui/hud.js`), 100% = niveau
       terminé → overlay. Chaque kill « repeint » l'arène de la palette du biome.
-- [ ] Phase 6 — Multi-niveaux & boss
+- [x] **Phase 6 — Multi-niveaux & boss** : 5 biomes data-driven (palettes +
+      difficulté croissante), pentagone tireur (+ projectiles ennemis), boss
+      hexagone avec 3 patterns de tir (déclenché à ~78% et gate du 100%),
+      enchaînement des niveaux (build conservé), écran de victoire final.
 - [ ] Phase 7 — Audio
 - [ ] Phase 8 — Polish & juice
 - [ ] Phase 9 — Méta-progression & optimisation finale

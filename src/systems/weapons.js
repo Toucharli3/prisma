@@ -26,6 +26,13 @@ function nearestEnemy(world) {
       best = e;
     }
   });
+  // Le boss est aussi une cible valide (sinon l'auto-aim l'ignorerait).
+  if (world.boss) {
+    const dx = world.boss.x - px;
+    const dy = world.boss.y - py;
+    const d = dx * dx + dy * dy;
+    if (d < bd) best = world.boss;
+  }
   return best;
 }
 
@@ -96,7 +103,8 @@ export function createWeapons(world) {
       maxLife: 0.45,
       damage: w.damage * p.mods.damageMul,
       color: w.color,
-      pending: true,
+      pending: true, // dégâts aux ennemis (grille) appliqués une fois
+      bossHit: false, // dégâts au boss appliqués une fois
     });
     if (world.onNova) world.onNova(w);
   }
@@ -196,6 +204,21 @@ export function createWeapons(world) {
           const dy = e.y - nv.y;
           if (dx * dx + dy * dy <= r2) damageEnemy(e, nv.damage);
         });
+      }
+    },
+
+    // Itère les positions monde des orbes orbitaux (pour collisions hors grille,
+    // ex. le boss). cb(x, y, nodeRadius, damage).
+    forEachOrbitalNode(cb) {
+      const p = world.player;
+      for (const w of list) {
+        if (w.kind !== 'orbital') continue;
+        const R = w.radius * p.mods.areaMul;
+        const dmg = w.damage * p.mods.damageMul;
+        for (let i = 0; i < w.count; i++) {
+          const a = w.angle + (i * TAU) / w.count;
+          cb(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, w.nodeRadius, dmg);
+        }
       }
     },
 

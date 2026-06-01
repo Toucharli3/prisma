@@ -45,23 +45,71 @@ export const CONFIG = {
   grid: { cell: 110 },
 
   // --- Ennemis (formes vectorielles « vidées ») ---
-  // hp/speed sont multipliés par les facteurs de niveau (Phase 6).
+  // hp/speed sont multipliés par les facteurs de niveau.
   enemyTypes: {
     triangle: { key: 'triangle', sides: 3, radius: 13, hp: 8, speed: 130, damage: 7, xp: 1 },
     square: { key: 'square', sides: 4, radius: 18, hp: 32, speed: 64, damage: 13, xp: 3 },
+    pentagon: {
+      key: 'pentagon',
+      sides: 5,
+      radius: 16,
+      hp: 22,
+      speed: 78,
+      damage: 9,
+      xp: 4,
+      behavior: 'shooter', // garde ses distances et tire des projectiles
+      preferredRange: 330,
+      shootCooldown: 1.7,
+      bulletSpeed: 300,
+      bulletDamage: 8,
+    },
+  },
+  enemyBulletMax: 600,
+
+  // --- Boss (hexagone) — stats de base, mises à l'échelle par niveau ---
+  boss: {
+    sides: 6,
+    radius: 52,
+    baseHp: 520,
+    hpPerLevel: 0.6, // hp = baseHp * (1 + index * hpPerLevel)
+    speed: 54,
+    contactDamage: 18,
+    bulletDamage: 8,
+    bulletSpeed: 240,
+    patternCd: 1.7,
+    rotSpeed: 0.5,
+    xp: 40,
   },
 
-  // Spawner basique (Phase 2). Remplacé par un spawner data-driven par niveau (Phase 6).
-  spawnBasic: {
-    firstDelay: 1.0,
-    interval: 1.35,
-    batch: 3,
-    maxAlive: 90,
-    spawnDist: 740, // anneau d'apparition autour du joueur (hors écran)
-    types: ['triangle', 'triangle', 'square'], // pondération par répétition
-    hpScale: 1,
-    speedScale: 1,
-  },
+  // --- Niveaux (data-driven). Palette = PALETTES[index]. Boss déclenché à
+  // bossTrigger (% de couleur) ; le dernier 1-bossTrigger est gated par le boss. ---
+  levels: [
+    {
+      killsToFull: 44,
+      bossTrigger: 0.78,
+      spawn: { firstDelay: 1.2, interval: 1.4, batch: 3, maxAlive: 75, spawnDist: 760, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
+    },
+    {
+      killsToFull: 58,
+      bossTrigger: 0.78,
+      spawn: { firstDelay: 1.0, interval: 1.25, batch: 3, maxAlive: 90, spawnDist: 760, types: ['triangle', 'triangle', 'square', 'pentagon'], hpScale: 1.3, speedScale: 1.08 },
+    },
+    {
+      killsToFull: 72,
+      bossTrigger: 0.78,
+      spawn: { firstDelay: 1.0, interval: 1.1, batch: 4, maxAlive: 105, spawnDist: 780, types: ['triangle', 'square', 'pentagon', 'triangle'], hpScale: 1.7, speedScale: 1.16 },
+    },
+    {
+      killsToFull: 88,
+      bossTrigger: 0.78,
+      spawn: { firstDelay: 0.9, interval: 1.0, batch: 4, maxAlive: 120, spawnDist: 800, types: ['triangle', 'square', 'pentagon', 'square'], hpScale: 2.1, speedScale: 1.24 },
+    },
+    {
+      killsToFull: 104,
+      bossTrigger: 0.78,
+      spawn: { firstDelay: 0.9, interval: 0.85, batch: 5, maxAlive: 140, spawnDist: 820, types: ['triangle', 'square', 'pentagon', 'triangle', 'square'], hpScale: 2.6, speedScale: 1.32 },
+    },
+  ],
 
   // --- Armes (data-driven). kind: projectile | orbital | nova ---
   weapons: {
