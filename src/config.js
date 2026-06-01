@@ -39,6 +39,28 @@ export const CONFIG = {
     height: 1800,
     margin: 80, // marge intérieure des murs
   },
+
+  // --- Collisions ---
+  grid: { cell: 110 },
+
+  // --- Ennemis (formes vectorielles « vidées ») ---
+  // hp/speed sont multipliés par les facteurs de niveau (Phase 6).
+  enemyTypes: {
+    triangle: { key: 'triangle', sides: 3, radius: 13, hp: 8, speed: 130, damage: 7, xp: 1 },
+    square: { key: 'square', sides: 4, radius: 18, hp: 32, speed: 64, damage: 13, xp: 3 },
+  },
+
+  // Spawner basique (Phase 2). Remplacé par un spawner data-driven par niveau (Phase 6).
+  spawnBasic: {
+    firstDelay: 1.0,
+    interval: 1.35,
+    batch: 3,
+    maxAlive: 90,
+    spawnDist: 740, // anneau d'apparition autour du joueur (hors écran)
+    types: ['triangle', 'triangle', 'square'], // pondération par répétition
+    hpScale: 1,
+    speedScale: 1,
+  },
 };
 
 // Palettes par niveau / biome — la couleur que le monde « reprend ».

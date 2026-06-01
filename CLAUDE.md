@@ -48,7 +48,9 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 - [x] **Phase 1 — Joueur & déplacement** : entité joueur (cœur + halo cyan +
       traînée comète), input 8 directions normalisé, caméra qui suit, cache de
       glow offscreen (`Render.glowSprite` / `softDot` / `drawSprite`).
-- [ ] Phase 2 — Ennemis & collisions
+- [x] **Phase 2 — Ennemis & collisions** : object pool générique, spatial hash,
+      ennemis triangle/carré qui poursuivent + séparation, PV joueur + dégâts de
+      contact + i-frames, mort → Game Over basique. (`window.__prisma` = handle debug)
 - [ ] Phase 3 — Armes & combat
 - [ ] Phase 4 — XP, niveaux, upgrades
 - [ ] Phase 5 — Restauration de couleur & objectif

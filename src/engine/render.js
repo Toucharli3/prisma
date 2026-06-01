@@ -3,7 +3,7 @@
 // en Phase 1. Tout passe par ce module pour garder le rendu cohérent.
 
 import { CONFIG } from '../config.js';
-import { clamp, TAU, hexToRgb, rgbCss } from './math.js';
+import { clamp, TAU, HALF_PI, hexToRgb, rgbCss } from './math.js';
 
 export const Render = {
   canvas: null,
@@ -189,6 +189,45 @@ export const Render = {
       ctx.restore();
     }
     if (alpha !== 1) ctx.globalAlpha = 1;
+  },
+
+  // Polygone régulier pré-rendu (halo + remplissage dégradé + contour lumineux).
+  // La forme pointe vers le haut ; appliquer la rotation au moment du blit.
+  polySprite(sides, radius, fillA, fillB, outline, glow, glowScale = 1.8) {
+    const glowR = radius * glowScale;
+    const pad = Math.ceil(glowR) + 3;
+    const size = pad * 2;
+    const gl = hexToRgb(glow);
+    const key = `poly|${sides}|${radius}|${fillA}|${fillB}|${outline}|${glow}|${glowScale}`;
+    return this.sprite(key, size, (c, sz) => {
+      const cx = sz / 2;
+      // halo
+      const grad = c.createRadialGradient(cx, cx, radius * 0.3, cx, cx, glowR);
+      grad.addColorStop(0, rgbCss(gl.r, gl.g, gl.b, 0.4));
+      grad.addColorStop(1, rgbCss(gl.r, gl.g, gl.b, 0));
+      c.fillStyle = grad;
+      c.beginPath();
+      c.arc(cx, cx, glowR, 0, TAU);
+      c.fill();
+      // chemin du polygone
+      c.beginPath();
+      for (let i = 0; i < sides; i++) {
+        const a = -HALF_PI + (i * TAU) / sides;
+        const x = cx + Math.cos(a) * radius;
+        const y = cx + Math.sin(a) * radius;
+        if (i) c.lineTo(x, y);
+        else c.moveTo(x, y);
+      }
+      c.closePath();
+      const lg = c.createLinearGradient(cx, cx - radius, cx, cx + radius);
+      lg.addColorStop(0, fillA);
+      lg.addColorStop(1, fillB);
+      c.fillStyle = lg;
+      c.fill();
+      c.lineWidth = 2;
+      c.strokeStyle = outline;
+      c.stroke();
+    });
   },
 
   additive() {

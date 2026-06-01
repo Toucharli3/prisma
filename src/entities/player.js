@@ -19,6 +19,7 @@ export class Player {
     this.maxHp = s.maxHp;
     this.hp = s.maxHp;
     this.angle = 0;
+    this.inv = 0; // timer d'invincibilité (i-frames)
 
     this._mv = { x: 0, y: 0 };
     // Ring buffer de la traînée (Float32Array : aucune allocation en boucle).
@@ -32,13 +33,27 @@ export class Player {
     this.y = this.py = y;
     this.hp = this.maxHp;
     this.angle = 0;
+    this.inv = 0;
     this.trailHead = 0;
     this.trailCount = 0;
+  }
+
+  get dead() {
+    return this.hp <= 0;
+  }
+
+  // Applique des dégâts si non invincible. Renvoie true si le coup a porté.
+  takeDamage(dmg) {
+    if (this.inv > 0 || this.hp <= 0) return false;
+    this.hp -= dmg;
+    this.inv = CONFIG.playerStats.iframes;
+    return true;
   }
 
   update(dt) {
     this.px = this.x;
     this.py = this.y;
+    if (this.inv > 0) this.inv -= dt;
 
     Input.moveVector(this._mv);
     this.x += this._mv.x * this.speed * dt;
@@ -73,7 +88,8 @@ export class Player {
     }
     R.normal();
 
-    // Corps : halo cyan + cœur blanc.
-    R.drawSprite(R.glowSprite(CONFIG.player.coreColor, CONFIG.player.glowColor, this.radius), ix, iy);
+    // Corps : halo cyan + cœur blanc. Clignote pendant les i-frames.
+    const blink = this.inv > 0 && (this.inv * 16) % 2 < 1 ? 0.35 : 1;
+    R.drawSprite(R.glowSprite(CONFIG.player.coreColor, CONFIG.player.glowColor, this.radius), ix, iy, 0, 1, blink);
   }
 }
