@@ -17,7 +17,8 @@ export class Enemy {
     this.sepy = 0;
     this.angle = 0;
     this.rotSpeed = 0;
-    this.hitFlash = 0; // éclair blanc bref quand touché (Phase 3)
+    this.hitFlash = 0; // éclair blanc bref quand touché
+    this.lastBulletId = -1; // anti double-hit des projectiles perforants
     this.type = '';
     this.sides = 3;
     this.radius = 12;
@@ -43,6 +44,7 @@ export class Enemy {
     this.sepx = 0;
     this.sepy = 0;
     this.hitFlash = 0;
+    this.lastBulletId = -1;
     this.angle = Math.random() * TAU;
     this.rotSpeed = (Math.random() * 2 - 1) * 0.7;
   }

@@ -4,6 +4,7 @@
 export const CONFIG = {
   // --- Debug / perf ---
   debug: true, // overlay FPS + infos (désactivable)
+  perf: false, // mode performance : réduit particules, désactive scanlines (Phase 8)
   maxDPR: 1.5, // plafond devicePixelRatio (évite le sur-rendu HiDPI sur GPU intégré)
 
   // --- Couleurs de base / UI (DA section 2) ---
@@ -61,6 +62,29 @@ export const CONFIG = {
     hpScale: 1,
     speedScale: 1,
   },
+
+  // --- Armes (data-driven). kind: projectile | orbital | nova (Phase 4) ---
+  weapons: {
+    eclat: {
+      name: 'Éclat',
+      kind: 'projectile',
+      auto: true,
+      cooldown: 0.3,
+      damage: 6,
+      speed: 640,
+      bulletRadius: 5,
+      life: 1.0,
+      pierce: 0,
+      count: 1,
+      countPerLevel: 0.5, // +1 projectile tous les 2 niveaux
+      spread: 0.13,
+      color: '#00e5ff',
+    },
+  },
+  bulletMax: 420,
+
+  // --- Particules (plafonnées ; réduites en mode perf) ---
+  particles: { max: 1500, killBurst: 16, killBurstPerf: 8 },
 };
 
 // Palettes par niveau / biome — la couleur que le monde « reprend ».

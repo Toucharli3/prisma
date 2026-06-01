@@ -20,6 +20,11 @@ export class Player {
     this.hp = s.maxHp;
     this.angle = 0;
     this.inv = 0; // timer d'invincibilité (i-frames)
+    this.aimMode = 'auto'; // 'auto' | 'mouse' (option Phase 8)
+
+    // Modificateurs cumulés par les upgrades (Phase 4). Multiplicateurs neutres
+    // par défaut ; remis à zéro à chaque nouvelle partie.
+    this.mods = this._defaultMods();
 
     this._mv = { x: 0, y: 0 };
     // Ring buffer de la traînée (Float32Array : aucune allocation en boucle).
@@ -28,12 +33,26 @@ export class Player {
     this.trailCount = 0;
   }
 
+  _defaultMods() {
+    return {
+      damageMul: 1,
+      rateMul: 1,
+      projAdd: 0,
+      areaMul: 1,
+      moveMul: 1,
+      collectMul: 1,
+    };
+  }
+
   reset(x, y) {
     this.x = this.px = x;
     this.y = this.py = y;
+    this.maxHp = CONFIG.playerStats.maxHp;
     this.hp = this.maxHp;
     this.angle = 0;
     this.inv = 0;
+    this.aimMode = 'auto';
+    this.mods = this._defaultMods();
     this.trailHead = 0;
     this.trailCount = 0;
   }
@@ -56,8 +75,9 @@ export class Player {
     if (this.inv > 0) this.inv -= dt;
 
     Input.moveVector(this._mv);
-    this.x += this._mv.x * this.speed * dt;
-    this.y += this._mv.y * this.speed * dt;
+    const sp = this.speed * this.mods.moveMul;
+    this.x += this._mv.x * sp * dt;
+    this.y += this._mv.y * sp * dt;
 
     // Bornage à l'arène.
     const a = CONFIG.arena;

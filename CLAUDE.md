@@ -51,7 +51,9 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 - [x] **Phase 2 — Ennemis & collisions** : object pool générique, spatial hash,
       ennemis triangle/carré qui poursuivent + séparation, PV joueur + dégâts de
       contact + i-frames, mort → Game Over basique. (`window.__prisma` = handle debug)
-- [ ] Phase 3 — Armes & combat
+- [x] **Phase 3 — Armes & combat** : arme « Éclat » auto-aim, pool de projectiles,
+      PV ennemis + mort, système de particules (SoA, ring buffer) → éclaboussure
+      de couleur du biome. Collisions projectile→ennemi via grille spatiale.
 - [ ] Phase 4 — XP, niveaux, upgrades
 - [ ] Phase 5 — Restauration de couleur & objectif
 - [ ] Phase 6 — Multi-niveaux & boss
