@@ -122,6 +122,9 @@ export const CONFIG = {
   // --- Particules (plafonnées ; réduites en mode perf) ---
   particles: { max: 1500, killBurst: 16, killBurstPerf: 8 },
 
+  // --- Restauration de couleur (mécanisme signature) ---
+  colorfield: { cols: 48, rows: 32, splashRadius: 2.6, ambientMax: 0.3, killsToFull: 55 },
+
   // --- XP / niveaux ---
   xp: { base: 5, growth: 1.22 }, // XP requise = base * growth^(niveau-1)
   levelUp: { slowmoTime: 0.35, slowmoScale: 0.18 }, // ralenti à la montée de niveau

@@ -57,7 +57,10 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 - [x] **Phase 4 — XP, niveaux, upgrades** : orbes d'XP poolés (aimant + dérive
       douce), barre d'XP, montée de niveau + ralenti, écran 1-parmi-3 (clavier/souris),
       8 upgrades de stats + 3 armes (Onde/Orbital/Nova) data-driven, pause (P/Échap).
-- [ ] Phase 5 — Restauration de couleur & objectif
+- [x] **Phase 5 — Restauration de couleur & objectif** : `colorfield.js` (champ
+      basse résolution peint par les kills, upscalé + lissé en taches douces +
+      teinte ambiante globale), jauge de couleur HUD (`ui/hud.js`), 100% = niveau
+      terminé → overlay. Chaque kill « repeint » l'arène de la palette du biome.
 - [ ] Phase 6 — Multi-niveaux & boss
 - [ ] Phase 7 — Audio
 - [ ] Phase 8 — Polish & juice

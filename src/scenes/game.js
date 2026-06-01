@@ -1,6 +1,6 @@
 // game.js — scène de jeu principale. Détient le « monde » (joueur + pools) et
-// orchestre les systèmes. Gère 4 modes internes : play / levelup (ralenti) /
-// upgrade (overlay de choix) / paused. La logique tourne à pas fixe.
+// orchestre les systèmes. Modes internes : play / levelup (ralenti) / upgrade /
+// paused / complete (niveau terminé). La logique tourne à pas fixe.
 
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
@@ -9,6 +9,7 @@ import { lerp, makeRng, hexA } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
 import { SpatialGrid } from '../engine/grid.js';
 import { Particles } from '../engine/particles.js';
+import { ColorField } from '../systems/colorfield.js';
 import { Player } from '../entities/player.js';
 import { Enemy } from '../entities/enemy.js';
 import { Bullet } from '../entities/bullet.js';
@@ -18,17 +19,19 @@ import { createWeapons } from '../systems/weapons.js';
 import { rollChoices } from '../systems/upgrades.js';
 import { createUpgradeOverlay } from './upgrade.js';
 import { renderPause } from './pause.js';
-import { fillBar } from '../ui/widgets.js';
+import { drawHud } from '../ui/hud.js';
 
 const SEPARATION_WEIGHT = 0.7;
 const QUERY_PAD = 28;
 
 const xpForLevel = (level) => Math.round(CONFIG.xp.base * Math.pow(CONFIG.xp.growth, level - 1));
+const FONT = '"Segoe UI", system-ui, sans-serif';
 
 export function createGameScene() {
   let app = null;
-  let mode = 'play'; // play | levelup | upgrade | paused
+  let mode = 'play'; // play | levelup | upgrade | paused | complete
   let slowmoT = 0;
+  let completeT = 0;
   let upgrade = null;
   let pendingLevels = 0;
 
@@ -37,6 +40,7 @@ export function createGameScene() {
   const bullets = new Pool(() => new Bullet(), CONFIG.bulletMax);
   const orbs = new Pool(() => new Orb(), CONFIG.orbMax);
   const particles = new Particles(CONFIG.particles.max);
+  const colorfield = new ColorField(CONFIG.arena.width, CONFIG.arena.height);
   const grid = new SpatialGrid(CONFIG.arena.width, CONFIG.arena.height, CONFIG.grid.cell);
   const spawner = createSpawner();
 
@@ -46,6 +50,7 @@ export function createGameScene() {
     bullets,
     orbs,
     particles,
+    colorfield,
     grid,
     rng: makeRng(0xc0ffee),
     time: 0,
@@ -94,7 +99,7 @@ export function createGameScene() {
     const n = CONFIG.perf ? CONFIG.particles.killBurstPerf : CONFIG.particles.killBurst;
     particles.burst(e.x, e.y, n, world.palette.colors, world.rng);
     orbs.obtain().init(e.x, e.y, e.xp);
-    // Phase 5 : éclaboussure du colorfield.
+    colorfield.onKill(e.x, e.y, world.rng); // restaure de la couleur
   }
 
   function damageEnemy(e, dmg) {
@@ -148,7 +153,7 @@ export function createGameScene() {
     });
   }
 
-  // Pipeline complet d'une étape de simulation (dt potentiellement ralenti).
+  // Pipeline complet d'une étape (dt potentiellement ralenti).
   function stepWorld(dt) {
     world.time += dt;
     player.update(dt);
@@ -185,40 +190,13 @@ export function createGameScene() {
     if (player.dead) app.gameOver({ time: world.time, kills: world.kills, level: world.level });
   }
 
-  function drawHud() {
-    const ctx = Render.ctx;
-    const vw = Render.viewW;
-
-    // Barre d'XP (haut, pleine largeur).
-    const xpFrac = world.xp / world.xpNext;
-    fillBar(ctx, 130, 14, vw - 260, 8, xpFrac, CONFIG.player.glowColor);
-    ctx.fillStyle = CONFIG.textPrimary;
-    ctx.font = '700 13px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`NIVEAU ${world.level}`, vw / 2, 28);
-
-    // Barre de PV (bas-gauche).
-    const y = Render.viewH - 34;
-    const frac = Math.max(0, player.hp / player.maxHp);
-    fillBar(ctx, 16, y, 280, 16, frac, frac > 0.3 ? CONFIG.player.glowColor : CONFIG.danger);
-    ctx.fillStyle = CONFIG.textPrimary;
-    ctx.font = '600 12px "Segoe UI", system-ui, sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${Math.max(0, Math.ceil(player.hp))} / ${player.maxHp}`, 24, y + 8);
-
-    if (CONFIG.debug) {
-      ctx.fillStyle = CONFIG.textSecondary;
-      ctx.textAlign = 'right';
-      ctx.textBaseline = 'top';
-      ctx.fillText(`ennemis:${enemies.count} tirs:${bullets.count} orbes:${orbs.count} kills:${world.kills}`, vw - 12, 44);
-    }
-  }
-
   function drawWorld(alpha) {
-    Render.follow(lerp(player.px, player.x, alpha), lerp(player.py, player.y, alpha));
+    const ix = lerp(player.px, player.x, alpha);
+    const iy = lerp(player.py, player.y, alpha);
+    Render.follow(ix, iy);
     Render.begin();
+
+    colorfield.render(Render); // couche de couleur, sous les entités
 
     enemies.forEach((e) => e.render(Render, alpha));
 
@@ -229,10 +207,33 @@ export function createGameScene() {
     Render.normal();
 
     particles.render(Render);
-    weapons.render(Render, lerp(player.px, player.x, alpha), lerp(player.py, player.y, alpha));
+    weapons.render(Render, ix, iy);
     player.render(Render, alpha);
 
     Render.end();
+  }
+
+  function drawComplete(R) {
+    const ctx = R.ctx;
+    const vw = R.viewW;
+    const vh = R.viewH;
+    ctx.fillStyle = 'rgba(8,8,14,0.5)';
+    ctx.fillRect(0, 0, vw, vh);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = world.palette.colors[1];
+    ctx.font = `800 30px ${FONT}`;
+    ctx.fillText('COULEUR RESTAURÉE', vw / 2, vh / 2 - 84);
+    ctx.fillStyle = CONFIG.textPrimary;
+    ctx.font = `900 84px ${FONT}`;
+    ctx.fillText('100%', vw / 2, vh / 2 - 6);
+    ctx.font = `800 34px ${FONT}`;
+    ctx.fillText('NIVEAU TERMINÉ', vw / 2, vh / 2 + 64);
+    if (completeT > 1.2) {
+      ctx.fillStyle = CONFIG.textSecondary;
+      ctx.font = `600 18px ${FONT}`;
+      ctx.fillText('Entrée / clic pour continuer', vw / 2, vh / 2 + 116);
+    }
   }
 
   return {
@@ -250,6 +251,7 @@ export function createGameScene() {
       weapons.reset();
       weapons.add('eclat');
       spawner.reset(CONFIG.spawnBasic);
+      colorfield.reset(PALETTES[0], CONFIG.colorfield.killsToFull);
       world.time = 0;
       world.kills = 0;
       world.xp = 0;
@@ -266,6 +268,12 @@ export function createGameScene() {
         mode = mode === 'paused' ? 'play' : 'paused';
       }
       if (mode === 'paused') return;
+
+      if (mode === 'complete') {
+        completeT += dt;
+        if (completeT > 1.2 && app.input.confirmPressed()) app.startGame();
+        return;
+      }
       if (mode === 'upgrade') {
         upgrade.update(dt);
         return;
@@ -276,7 +284,12 @@ export function createGameScene() {
         if (slowmoT <= 0) openUpgrade();
         return;
       }
+
       stepWorld(dt);
+      if (colorfield.complete) {
+        mode = 'complete';
+        completeT = 0;
+      }
     },
 
     render(alpha) {
@@ -288,10 +301,11 @@ export function createGameScene() {
         ctx.fillRect(0, 0, Render.viewW, Render.viewH);
       }
 
-      drawHud();
+      drawHud(Render, world);
 
       if (mode === 'upgrade') upgrade.render(Render);
       if (mode === 'paused') renderPause(Render);
+      if (mode === 'complete') drawComplete(Render);
     },
   };
 }
