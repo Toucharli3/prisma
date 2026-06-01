@@ -54,7 +54,9 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 - [x] **Phase 3 — Armes & combat** : arme « Éclat » auto-aim, pool de projectiles,
       PV ennemis + mort, système de particules (SoA, ring buffer) → éclaboussure
       de couleur du biome. Collisions projectile→ennemi via grille spatiale.
-- [ ] Phase 4 — XP, niveaux, upgrades
+- [x] **Phase 4 — XP, niveaux, upgrades** : orbes d'XP poolés (aimant + dérive
+      douce), barre d'XP, montée de niveau + ralenti, écran 1-parmi-3 (clavier/souris),
+      8 upgrades de stats + 3 armes (Onde/Orbital/Nova) data-driven, pause (P/Échap).
 - [ ] Phase 5 — Restauration de couleur & objectif
 - [ ] Phase 6 — Multi-niveaux & boss
 - [ ] Phase 7 — Audio

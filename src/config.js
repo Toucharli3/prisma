@@ -26,7 +26,7 @@ export const CONFIG = {
     radius: 13,
     speed: 270, // px/s
     maxHp: 100,
-    collectRadius: 95, // rayon de ramassage des orbes (Phase 4)
+    collectRadius: 130, // rayon de l'aimant fort (Phase 4)
     iframes: 0.8, // invincibilité après un coup reçu (s) (Phase 2)
   },
 
@@ -63,7 +63,7 @@ export const CONFIG = {
     speedScale: 1,
   },
 
-  // --- Armes (data-driven). kind: projectile | orbital | nova (Phase 4) ---
+  // --- Armes (data-driven). kind: projectile | orbital | nova ---
   weapons: {
     eclat: {
       name: 'Éclat',
@@ -80,11 +80,53 @@ export const CONFIG = {
       spread: 0.13,
       color: '#00e5ff',
     },
+    onde: {
+      name: 'Onde',
+      kind: 'projectile',
+      auto: true,
+      cooldown: 0.72,
+      damage: 10,
+      speed: 520,
+      bulletRadius: 7,
+      life: 1.5,
+      pierce: 3,
+      piercePerLevel: 1, // transperce de plus en plus d'ennemis
+      count: 1,
+      spread: 0,
+      color: '#18ffd5',
+    },
+    orbital: {
+      name: 'Orbital',
+      kind: 'orbital',
+      damage: 6, // par contact (avec cooldown par ennemi)
+      count: 2,
+      countPerLevel: 0.5,
+      radius: 82, // rayon d'orbite
+      rotSpeed: 2.3, // rad/s
+      nodeRadius: 11,
+      color: '#b14dff',
+    },
+    nova: {
+      name: 'Nova',
+      kind: 'nova',
+      cooldown: 2.6,
+      damage: 16,
+      radius: 150, // multiplié par mods.areaMul
+      color: '#ff4dd2',
+    },
   },
+  maxWeapons: 4, // emplacements d'armes
+  maxWeaponLevel: 8,
   bulletMax: 420,
 
   // --- Particules (plafonnées ; réduites en mode perf) ---
   particles: { max: 1500, killBurst: 16, killBurstPerf: 8 },
+
+  // --- XP / niveaux ---
+  xp: { base: 5, growth: 1.22 }, // XP requise = base * growth^(niveau-1)
+  levelUp: { slowmoTime: 0.35, slowmoScale: 0.18 }, // ralenti à la montée de niveau
+  orbMax: 400,
+  orb: { radius: 7, magnetSpeed: 540, lifetime: 18 },
 };
 
 // Palettes par niveau / biome — la couleur que le monde « reprend ».

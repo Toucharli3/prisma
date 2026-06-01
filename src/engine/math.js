@@ -70,3 +70,9 @@ export function desaturateHex(hex, t, alpha = 1) {
   const gray = 0.299 * r + 0.587 * g + 0.114 * b;
   return rgbCss(lerp(r, gray, t), lerp(g, gray, t), lerp(b, gray, t), alpha);
 }
+
+// Couleur hex -> chaîne rgba avec alpha.
+export function hexA(hex, a) {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbCss(r, g, b, a);
+}

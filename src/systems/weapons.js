@@ -1,10 +1,17 @@
 // weapons.js — définitions (data-driven dans config.js) + logique de tir.
-// Phase 3 : arme « Éclat » (projectile auto-aim). Étendu en Phase 4 (Onde,
-// Orbital, Nova) et Phase 8 (visée souris).
+// 3 familles (`kind`) :
+//   - projectile : tire des balles auto-aim (Éclat, Onde)
+//   - orbital    : entretient des orbes tournant autour du joueur (dégâts contact)
+//   - nova       : explosion de zone périodique
+// Les dégâts de contact (orbital/nova) sont appliqués depuis la scène, avec la
+// grille spatiale à jour, via applyContactDamage(damageEnemyFn).
 
 import { CONFIG } from '../config.js';
+import { TAU, hexA } from '../engine/math.js';
 
-// Ennemi le plus proche du joueur (auto-aim). O(n) — suffisant pour nos densités.
+const ORBITAL_HIT_CD = 0.35; // intervalle de dégâts orbital par ennemi
+const NODE_QUERY_PAD = 24;
+
 function nearestEnemy(world) {
   let best = null;
   let bd = Infinity;
@@ -24,73 +31,83 @@ function nearestEnemy(world) {
 
 export function createWeapons(world) {
   const list = [];
+  const novas = []; // explosions actives (visuel + dégâts)
 
-  // Stats effectives d'une arme à un niveau donné (Phase 4 affine la montée).
+  // Stats effectives d'une arme à un niveau donné.
   function stats(def, level) {
     const lv = level - 1;
     return {
-      cooldown: def.cooldown * Math.pow(0.9, lv), // +cadence par niveau
-      damage: def.damage * (1 + 0.35 * lv), // +dégâts par niveau
+      kind: def.kind,
+      color: def.color,
+      cooldown: def.cooldown != null ? def.cooldown * Math.pow(0.92, lv) : 0,
+      damage: def.damage * (1 + 0.3 * lv),
+      count: (def.count || 1) + (def.countPerLevel ? Math.floor(lv * def.countPerLevel) : 0),
+      pierce: (def.pierce || 0) + (def.piercePerLevel ? lv * def.piercePerLevel : 0),
       speed: def.speed,
       bulletRadius: def.bulletRadius,
       life: def.life,
-      pierce: def.pierce + (def.piercePerLevel ? lv * def.piercePerLevel : 0),
-      count: def.count + (def.countPerLevel ? Math.floor(lv * def.countPerLevel) : 0),
-      spread: def.spread,
-      color: def.color,
-      kind: def.kind,
+      spread: def.spread || 0,
+      radius: def.radius,
+      rotSpeed: def.rotSpeed,
+      nodeRadius: def.nodeRadius,
     };
   }
 
-  function aimAngle(world) {
+  function aimAngle() {
     const p = world.player;
-    if (p.aimMode === 'mouse') {
-      const m = world.mouseWorld;
-      if (m) return Math.atan2(m.y - p.y, m.x - p.x);
+    if (p.aimMode === 'mouse' && world.mouseWorld) {
+      return Math.atan2(world.mouseWorld.y - p.y, world.mouseWorld.x - p.x);
     }
     const t = nearestEnemy(world);
     if (!t) return null;
     return Math.atan2(t.y - p.y, t.x - p.x);
   }
 
-  function fireProjectile(w, world) {
+  function fireProjectile(w) {
     const p = world.player;
-    const ang = aimAngle(world);
+    const ang = aimAngle();
     if (ang == null) return false; // pas de cible -> ne pas consommer le cooldown
-
     const count = w.count + p.mods.projAdd;
     const dmg = w.damage * p.mods.damageMul;
     for (let i = 0; i < count; i++) {
       const off = count > 1 ? (i - (count - 1) / 2) * w.spread : 0;
       const a = ang + off;
-      world.bullets
-        .obtain()
-        .init(p.x, p.y, Math.cos(a) * w.speed, Math.sin(a) * w.speed, {
-          damage: dmg,
-          radius: w.bulletRadius,
-          life: w.life,
-          pierce: w.pierce,
-          color: w.color,
-        });
+      world.bullets.obtain().init(p.x, p.y, Math.cos(a) * w.speed, Math.sin(a) * w.speed, {
+        damage: dmg,
+        radius: w.bulletRadius,
+        life: w.life,
+        pierce: w.pierce,
+        color: w.color,
+      });
     }
     if (world.onFire) world.onFire(w);
     return true;
   }
 
-  function fire(w, world) {
-    // Le switch sur `kind` prépare les armes non-projectiles (Phase 4).
-    switch (w.kind) {
-      case 'projectile':
-      default:
-        return fireProjectile(w, world);
-    }
+  function triggerNova(w) {
+    const p = world.player;
+    const r = w.radius * p.mods.areaMul;
+    novas.push({
+      x: p.x,
+      y: p.y,
+      r: 0,
+      maxR: r,
+      life: 0.45,
+      maxLife: 0.45,
+      damage: w.damage * p.mods.damageMul,
+      color: w.color,
+      pending: true,
+    });
+    if (world.onNova) world.onNova(w);
   }
 
   return {
     list,
+    novas,
 
     reset() {
       list.length = 0;
+      novas.length = 0;
     },
 
     has(key) {
@@ -107,18 +124,104 @@ export function createWeapons(world) {
         Object.assign(existing, stats(def, existing.level));
         return existing;
       }
-      const w = { key, def, level: 1, timer: 0, ...stats(def, 1) };
+      const w = { key, def, level: 1, timer: def.cooldown ? 0 : 0, angle: 0, ...stats(def, 1) };
       list.push(w);
       return w;
     },
 
     update(dt) {
-      const rate = world.player.mods.rateMul;
+      const p = world.player;
+      const rate = p.mods.rateMul;
       for (let i = 0; i < list.length; i++) {
         const w = list[i];
+        if (w.kind === 'orbital') {
+          w.angle += w.rotSpeed * dt;
+          continue;
+        }
+        if (w.kind === 'nova') {
+          w.timer -= dt;
+          if (w.timer <= 0) {
+            w.timer = w.cooldown / rate;
+            triggerNova(w);
+          }
+          continue;
+        }
+        // projectile
         w.timer -= dt;
-        if (w.timer <= 0 && fire(w, world)) w.timer = w.cooldown / rate;
+        if (w.timer <= 0 && fireProjectile(w)) w.timer = w.cooldown / rate;
       }
+
+      // Avance les explosions nova (l'anneau grandit, la vie décroît).
+      for (let i = novas.length - 1; i >= 0; i--) {
+        const nv = novas[i];
+        nv.life -= dt;
+        nv.r = nv.maxR * (1 - nv.life / nv.maxLife);
+        if (nv.life <= 0) novas.splice(i, 1);
+      }
+    },
+
+    // Applique les dégâts de contact (orbital + nova), grille à jour.
+    applyContactDamage(damageEnemy) {
+      const p = world.player;
+      const grid = world.grid;
+
+      for (const w of list) {
+        if (w.kind !== 'orbital') continue;
+        const R = w.radius * p.mods.areaMul;
+        const dmg = w.damage * p.mods.damageMul;
+        for (let i = 0; i < w.count; i++) {
+          const a = w.angle + (i * TAU) / w.count;
+          const nx = p.x + Math.cos(a) * R;
+          const ny = p.y + Math.sin(a) * R;
+          grid.queryCircle(nx, ny, w.nodeRadius + NODE_QUERY_PAD, (e) => {
+            if (!e.alive || e.orbitalCd > 0) return;
+            const rr = w.nodeRadius + e.radius;
+            const dx = e.x - nx;
+            const dy = e.y - ny;
+            if (dx * dx + dy * dy <= rr * rr) {
+              damageEnemy(e, dmg);
+              e.orbitalCd = ORBITAL_HIT_CD;
+            }
+          });
+        }
+      }
+
+      for (const nv of novas) {
+        if (!nv.pending) continue;
+        nv.pending = false;
+        const r2 = nv.maxR * nv.maxR;
+        grid.queryCircle(nv.x, nv.y, nv.maxR, (e) => {
+          if (!e.alive) return;
+          const dx = e.x - nv.x;
+          const dy = e.y - nv.y;
+          if (dx * dx + dy * dy <= r2) damageEnemy(e, nv.damage);
+        });
+      }
+    },
+
+    // Rendu des orbes orbitaux + anneaux de nova (centre = joueur interpolé).
+    render(R, px, py) {
+      const p = world.player;
+      const ctx = R.ctx;
+
+      R.additive();
+      for (const w of list) {
+        if (w.kind !== 'orbital') continue;
+        const Rr = w.radius * p.mods.areaMul;
+        for (let i = 0; i < w.count; i++) {
+          const a = w.angle + (i * TAU) / w.count;
+          R.drawSprite(R.glowSprite('#ffffff', w.color, w.nodeRadius, 2.2), px + Math.cos(a) * Rr, py + Math.sin(a) * Rr);
+        }
+      }
+      for (const nv of novas) {
+        const a = nv.life / nv.maxLife; // 1 -> 0
+        ctx.strokeStyle = hexA(nv.color, a * 0.9);
+        ctx.lineWidth = 5 * a + 2;
+        ctx.beginPath();
+        ctx.arc(nv.x, nv.y, nv.r, 0, TAU);
+        ctx.stroke();
+      }
+      R.normal();
     },
   };
 }

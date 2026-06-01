@@ -19,6 +19,7 @@ export class Enemy {
     this.rotSpeed = 0;
     this.hitFlash = 0; // éclair blanc bref quand touché
     this.lastBulletId = -1; // anti double-hit des projectiles perforants
+    this.orbitalCd = 0; // cooldown de dégâts par contact orbital
     this.type = '';
     this.sides = 3;
     this.radius = 12;
@@ -45,6 +46,7 @@ export class Enemy {
     this.sepy = 0;
     this.hitFlash = 0;
     this.lastBulletId = -1;
+    this.orbitalCd = 0;
     this.angle = Math.random() * TAU;
     this.rotSpeed = (Math.random() * 2 - 1) * 0.7;
   }
@@ -65,6 +67,7 @@ export class Enemy {
 
     this.angle += this.rotSpeed * dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
+    if (this.orbitalCd > 0) this.orbitalCd -= dt;
 
     // Réinitialise la séparation pour la frame suivante.
     this.sepx = 0;
