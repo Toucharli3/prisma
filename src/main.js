@@ -1,10 +1,12 @@
 // main.js — bootstrap, contexte applicatif partagé, machine à états des scènes
-// et boucle de jeu. Les scènes implémentent : enter / update(dt) / render(ctx, alpha) / exit.
+// et boucle de jeu. Les scènes gèrent elles-mêmes Render.begin()/end() afin de
+// pouvoir positionner la caméra (avec interpolation) avant l'ouverture de frame.
 
 import { CONFIG } from './config.js';
 import { Render } from './engine/render.js';
 import { Input } from './engine/input.js';
 import { createLoop } from './engine/loop.js';
+import { createGameScene } from './scenes/game.js';
 
 const canvas = document.getElementById('game');
 Render.init(canvas);
@@ -15,15 +17,6 @@ const app = {
   config: CONFIG,
   render: Render,
   input: Input,
-  get ctx() {
-    return Render.ctx;
-  },
-  get width() {
-    return Render.viewW;
-  },
-  get height() {
-    return Render.viewH;
-  },
   scene: null,
   setScene(scene, ...args) {
     if (this.scene && this.scene.exit) this.scene.exit();
@@ -32,28 +25,20 @@ const app = {
   },
 };
 
-// Scène d'amorçage de la Phase 0 : la grille de fond et le compteur FPS
-// sont gérés par la boucle ; cette scène est volontairement vide.
-const bootScene = {
-  enter() {},
-  update() {},
-  render() {},
-};
-
-app.setScene(bootScene);
-
 const loop = createLoop({
   update(dt) {
     if (app.scene.update) app.scene.update(dt);
     Input.endFrame();
   },
   render(alpha) {
-    Render.begin();
-    if (app.scene.render) app.scene.render(Render.ctx, alpha);
-    Render.end();
+    if (app.scene.render) app.scene.render(alpha);
+    Render.end(); // garantit l'espace écran pour l'overlay debug
     if (CONFIG.debug) Render.drawFPS(loop.fps);
   },
 });
 
 app.loop = loop;
+
+// Démarre directement dans le jeu (le menu stylé arrive en Phase 8).
+app.setScene(createGameScene());
 loop.start();

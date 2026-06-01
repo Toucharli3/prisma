@@ -20,6 +20,15 @@ export const CONFIG = {
     glowColor: '#00e5ff',
   },
 
+  // Stats du joueur (équilibrage de base)
+  playerStats: {
+    radius: 13,
+    speed: 270, // px/s
+    maxHp: 100,
+    collectRadius: 95, // rayon de ramassage des orbes (Phase 4)
+    iframes: 0.8, // invincibilité après un coup reçu (s) (Phase 2)
+  },
+
   // Couleur des ennemis « vidés » (avant destruction)
   enemyGrayA: '#6b6b78',
   enemyGrayB: '#8a8a99',

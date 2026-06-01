@@ -45,7 +45,9 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 
 - [x] **Phase 0 — Setup** : Vite, canvas plein écran responsive, boucle timestep
       fixe, grille de fond pré-rendue, overlay FPS.
-- [ ] Phase 1 — Joueur & déplacement
+- [x] **Phase 1 — Joueur & déplacement** : entité joueur (cœur + halo cyan +
+      traînée comète), input 8 directions normalisé, caméra qui suit, cache de
+      glow offscreen (`Render.glowSprite` / `softDot` / `drawSprite`).
 - [ ] Phase 2 — Ennemis & collisions
 - [ ] Phase 3 — Armes & combat
 - [ ] Phase 4 — XP, niveaux, upgrades

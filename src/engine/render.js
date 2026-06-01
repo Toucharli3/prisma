@@ -3,7 +3,7 @@
 // en Phase 1. Tout passe par ce module pour garder le rendu cohérent.
 
 import { CONFIG } from '../config.js';
-import { clamp } from './math.js';
+import { clamp, TAU, hexToRgb, rgbCss } from './math.js';
 
 export const Render = {
   canvas: null,
@@ -17,6 +17,7 @@ export const Render = {
   _ty: 0,
   _gridTile: null,
   _gridPattern: null,
+  _spriteCache: new Map(), // halos pré-rendus (clé -> {canvas,size,half})
 
   init(canvasEl) {
     this.canvas = canvasEl;
@@ -110,6 +111,91 @@ export const Render = {
   // Ferme la frame : repasse en espace écran pour dessiner l'UI.
   end() {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  },
+
+  // --- Cache de sprites offscreen ---
+  // Les halos coûteux (gradients radiaux) sont rendus UNE fois dans un petit
+  // canvas, puis simplement « blittés ». Aucun ctx.shadowBlur par frame.
+
+  // Récupère ou crée un sprite carré de côté `size`, rendu une seule fois.
+  sprite(key, size, drawFn) {
+    let s = this._spriteCache.get(key);
+    if (s) return s;
+    const c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    drawFn(c.getContext('2d'), size);
+    s = { canvas: c, size, half: size / 2 };
+    this._spriteCache.set(key, s);
+    return s;
+  },
+
+  // Vide le cache (ex. changement de palette de biome).
+  clearSpriteCache() {
+    this._spriteCache.clear();
+  },
+
+  // Disque lumineux : halo radial + cœur plein (joueur, orbes, projectiles).
+  glowSprite(coreColor, glowColor, radius, glowScale = 2.6) {
+    const glowR = radius * glowScale;
+    const pad = Math.ceil(glowR) + 2;
+    const size = pad * 2;
+    const g = hexToRgb(glowColor);
+    return this.sprite(`glow|${coreColor}|${glowColor}|${radius}|${glowScale}`, size, (c, sz) => {
+      const cx = sz / 2;
+      const grad = c.createRadialGradient(cx, cx, radius * 0.2, cx, cx, glowR);
+      grad.addColorStop(0, rgbCss(g.r, g.g, g.b, 0.85));
+      grad.addColorStop(0.45, rgbCss(g.r, g.g, g.b, 0.28));
+      grad.addColorStop(1, rgbCss(g.r, g.g, g.b, 0));
+      c.fillStyle = grad;
+      c.beginPath();
+      c.arc(cx, cx, glowR, 0, TAU);
+      c.fill();
+      c.fillStyle = coreColor;
+      c.beginPath();
+      c.arc(cx, cx, radius, 0, TAU);
+      c.fill();
+    });
+  },
+
+  // Blob radial doux sans cœur dur (traînée, particules, splash de couleur).
+  softDot(color, radius) {
+    const pad = Math.ceil(radius) + 2;
+    const size = pad * 2;
+    const g = hexToRgb(color);
+    return this.sprite(`soft|${color}|${radius}`, size, (c, sz) => {
+      const cx = sz / 2;
+      const grad = c.createRadialGradient(cx, cx, 0, cx, cx, radius);
+      grad.addColorStop(0, rgbCss(g.r, g.g, g.b, 0.95));
+      grad.addColorStop(0.5, rgbCss(g.r, g.g, g.b, 0.4));
+      grad.addColorStop(1, rgbCss(g.r, g.g, g.b, 0));
+      c.fillStyle = grad;
+      c.fillRect(0, 0, sz, sz);
+    });
+  },
+
+  // Blit d'un sprite centré en (x,y), rotation/échelle/alpha optionnels.
+  drawSprite(spr, x, y, rot = 0, scale = 1, alpha = 1) {
+    const ctx = this.ctx;
+    if (alpha !== 1) ctx.globalAlpha = alpha;
+    if (rot === 0 && scale === 1) {
+      ctx.drawImage(spr.canvas, x - spr.half, y - spr.half);
+    } else {
+      ctx.save();
+      ctx.translate(x, y);
+      if (rot) ctx.rotate(rot);
+      if (scale !== 1) ctx.scale(scale, scale);
+      ctx.drawImage(spr.canvas, -spr.half, -spr.half);
+      ctx.restore();
+    }
+    if (alpha !== 1) ctx.globalAlpha = 1;
+  },
+
+  additive() {
+    this.ctx.globalCompositeOperation = 'lighter';
+  },
+  normal() {
+    this.ctx.globalCompositeOperation = 'source-over';
   },
 
   worldToScreen(x, y, out = {}) {
