@@ -37,6 +37,18 @@ export class Enemy {
     this.fireAngle = 0;
     this.bulletSpeed = 0;
     this.bulletDamage = 0;
+    // Fonceur (dasher) :
+    this.dashSpeed = 0;
+    this.dashRange = 0;
+    this.dashCd = 0;
+    this.dashDuration = 0;
+    this.dashTimer = 0;
+    this.dashing = 0;
+    this.dashDirX = 0;
+    this.dashDirY = 0;
+    // Diviseur (splitter) :
+    this.splitInto = 0;
+    this.splitType = null;
   }
 
   init(def, x, y, hpScale = 1, speedScale = 1) {
@@ -56,6 +68,14 @@ export class Enemy {
     this.fireReady = false;
     this.bulletSpeed = def.bulletSpeed || 0;
     this.bulletDamage = def.bulletDamage || 0;
+    this.dashSpeed = def.dashSpeed || 0;
+    this.dashRange = def.dashRange || 0;
+    this.dashCd = def.dashCd || 0;
+    this.dashDuration = def.dashDuration || 0;
+    this.dashTimer = (def.dashCd || 0) * (0.3 + Math.random() * 0.7);
+    this.dashing = 0;
+    this.splitInto = def.splitInto || 0;
+    this.splitType = def.splitType || null;
     this.x = this.px = x;
     this.y = this.py = y;
     this.sepx = 0;
@@ -77,6 +97,8 @@ export class Enemy {
     let dirx = tx / d;
     let diry = ty / d;
 
+    let spd = this.speed;
+
     if (this.behavior === 'shooter') {
       // Garde ses distances : recule si trop près, tient sa position sinon.
       if (d < this.preferredRange * 0.85) {
@@ -92,13 +114,31 @@ export class Enemy {
         this.fireAngle = Math.atan2(ty, tx);
         this.shootTimer = this.shootCooldown;
       }
+    } else if (this.behavior === 'dasher') {
+      if (this.dashing > 0) {
+        // En pleine charge : direction verrouillée, vitesse élevée, pas de séparation.
+        this.dashing -= dt;
+        dirx = this.dashDirX;
+        diry = this.dashDirY;
+        spd = this.dashSpeed;
+        this.sepx = 0;
+        this.sepy = 0;
+      } else {
+        this.dashTimer -= dt;
+        if (this.dashTimer <= 0 && d < this.dashRange) {
+          this.dashing = this.dashDuration;
+          this.dashTimer = this.dashCd;
+          this.dashDirX = dirx;
+          this.dashDirY = diry;
+        }
+      }
     }
 
     let vx = dirx + this.sepx;
     let vy = diry + this.sepy;
     const vl = Math.hypot(vx, vy) || 1;
-    this.x += (vx / vl) * this.speed * dt;
-    this.y += (vy / vl) * this.speed * dt;
+    this.x += (vx / vl) * spd * dt;
+    this.y += (vy / vl) * spd * dt;
 
     this.angle += this.rotSpeed * dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;

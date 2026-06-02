@@ -45,7 +45,25 @@ const NEW_WEAPON_DESC = {
   onde: 'Nouvelle arme — transperce les ennemis',
   orbital: 'Nouvelle arme — orbes tournants',
   nova: 'Nouvelle arme — explosion périodique',
+  foudre: 'Nouvelle arme — éclair qui rebondit',
+  faisceau: 'Nouvelle arme — rayon perçant',
 };
+
+// Décrit ce que la montée de niveau d'une arme apporte (chiffres concrets).
+function weaponLevelDesc(wp) {
+  const def = wp.def;
+  const lv = wp.level; // niveau actuel
+  const curDmg = Math.round(wp.damage);
+  const nextDmg = Math.round(def.damage * (1 + 0.3 * lv));
+  const parts = [`Dégâts ${curDmg}→${nextDmg}`];
+  if (def.cooldown != null) parts.push('+8% cadence');
+  if (def.countPerLevel) {
+    const gain = Math.floor(lv * def.countPerLevel) - Math.floor((lv - 1) * def.countPerLevel);
+    if (gain > 0) parts.push(def.kind === 'chain' ? `+${gain} rebond` : def.kind === 'orbital' ? `+${gain} orbe` : `+${gain} projectile`);
+  }
+  if (def.piercePerLevel) parts.push(`+${def.piercePerLevel} perforation`);
+  return parts.join(' · ');
+}
 
 // Tirage pondéré sans remise.
 function sample(cands, n, rng) {
@@ -79,7 +97,7 @@ export function rollChoices(world, n = 3) {
 
   // Déblocage d'armes non possédées (si un emplacement est libre).
   if (world.weapons.list.length < CONFIG.maxWeapons) {
-    for (const key of ['onde', 'orbital', 'nova']) {
+    for (const key of ['onde', 'orbital', 'nova', 'foudre', 'faisceau']) {
       if (world.weapons.has(key)) continue;
       cand.push({
         id: 'w_' + key,
@@ -97,8 +115,8 @@ export function rollChoices(world, n = 3) {
     if (wp.level >= CONFIG.maxWeaponLevel) continue;
     cand.push({
       id: 'lvl_' + wp.key,
-      name: `${wp.def.name} ${'+'.repeat(Math.min(wp.level, 5))}`,
-      desc: `Améliore l'arme (niveau ${wp.level + 1})`,
+      name: `${wp.def.name} Niv.${wp.level + 1}`,
+      desc: weaponLevelDesc(wp),
       color: wp.def.color,
       weight: 1.2,
       apply: (w) => w.weapons.add(wp.key),

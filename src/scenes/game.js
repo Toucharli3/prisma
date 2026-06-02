@@ -8,7 +8,7 @@ import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
 import { Save } from '../engine/save.js';
 import { CONFIG, PALETTES } from '../config.js';
-import { lerp, makeRng, hexA } from '../engine/math.js';
+import { lerp, makeRng, hexA, TAU } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
 import { SpatialGrid } from '../engine/grid.js';
 import { Particles } from '../engine/particles.js';
@@ -199,6 +199,16 @@ export function createGameScene() {
     orbs.obtain().init(e.x, e.y, e.xp);
     colorfield.onKill(e.x, e.y, world.rng);
     if (bossActive && colorfield.percent > 0.99) colorfield.percent = 0.99; // gated par le boss
+
+    // Diviseur : engendre des petits ennemis à la mort.
+    if (e.splitInto > 0 && e.splitType && enemies.count < world.levelConfig.spawn.maxAlive) {
+      const childDef = CONFIG.enemyTypes[e.splitType];
+      const sc = world.levelConfig.spawn;
+      for (let i = 0; i < e.splitInto; i++) {
+        const a = (i / e.splitInto) * TAU + world.rng();
+        enemies.obtain().init(childDef, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, sc.hpScale * 0.6, sc.speedScale);
+      }
+    }
   }
 
   function damageEnemy(e, dmg) {
@@ -221,7 +231,7 @@ export function createGameScene() {
     const bx = Math.max(a.margin + 60, Math.min(a.width - a.margin - 60, player.x + Math.cos(ang) * 520));
     const by = Math.max(a.margin + 60, Math.min(a.height - a.margin - 60, player.y + Math.sin(ang) * 520));
     boss = new Boss();
-    boss.init(world.levelIndex, bx, by);
+    boss.init(world.levelIndex, bx, by, world.levelIndex); // variante alternée par biome
     world.boss = boss;
     Render.addShake(0.6);
     if (world.onBossSpawn) world.onBossSpawn();
@@ -457,7 +467,7 @@ export function createGameScene() {
     ctx.font = `800 13px ${FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText('⬡ LE STATIQUE', vw / 2, y - 4);
+    ctx.fillText('◆ ' + boss.name, vw / 2, y - 4);
   }
 
   function drawComplete(R) {

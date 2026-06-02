@@ -59,7 +59,7 @@ export const CONFIG = {
     radius: 13,
     speed: 270, // px/s
     maxHp: 100,
-    collectRadius: 130, // rayon de l'aimant fort (Phase 4)
+    collectRadius: 108, // rayon de l'aimant fort
     iframes: 0.8, // invincibilité après un coup reçu (s) (Phase 2)
   },
 
@@ -96,12 +96,37 @@ export const CONFIG = {
       bulletSpeed: 300,
       bulletDamage: 8,
     },
+    dasher: {
+      key: 'dasher',
+      sides: 3,
+      radius: 12,
+      hp: 14,
+      speed: 95, // vitesse de croisière
+      damage: 11,
+      xp: 2,
+      behavior: 'dasher', // s'approche puis CHARGE par à-coups
+      dashSpeed: 540,
+      dashRange: 320, // déclenche la charge sous cette distance
+      dashCd: 1.7,
+      dashDuration: 0.32,
+    },
+    splitter: {
+      key: 'splitter',
+      sides: 4,
+      radius: 21,
+      hp: 42,
+      speed: 56,
+      damage: 12,
+      xp: 4,
+      behavior: 'split', // se scinde en triangles à la mort
+      splitInto: 3,
+      splitType: 'triangle',
+    },
   },
   enemyBulletMax: 600,
 
-  // --- Boss (hexagone) — stats de base, mises à l'échelle par niveau ---
+  // --- Boss — stats de base, mises à l'échelle par niveau. 2 variantes alternées. ---
   boss: {
-    sides: 6,
     radius: 52,
     baseHp: 520,
     hpPerLevel: 0.6, // hp = baseHp * (1 + index * hpPerLevel)
@@ -112,6 +137,11 @@ export const CONFIG = {
     patternCd: 1.7,
     rotSpeed: 0.5,
     xp: 40,
+    // `patterns` = indices des patterns définis dans entities/boss.js.
+    variants: [
+      { sides: 6, color: '#ff2d55', name: 'LE STATIQUE', patterns: [0, 1, 2] }, // hexagone
+      { sides: 8, color: '#7a3cff', name: 'LE VIDE', patterns: [3, 4, 2] }, // octogone
+    ],
   },
 
   // --- Niveaux (data-driven). Palette = PALETTES[index]. Boss déclenché à
@@ -120,27 +150,27 @@ export const CONFIG = {
     {
       killsToFull: 40,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.8, interval: 1.0, batch: 4, maxAlive: 90, spawnDist: 760, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
+      spawn: { firstDelay: 0.7, interval: 0.85, batch: 5, maxAlive: 100, spawnDist: 700, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
     },
     {
       killsToFull: 54,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.8, interval: 0.9, batch: 4, maxAlive: 105, spawnDist: 760, types: ['triangle', 'triangle', 'square', 'pentagon'], hpScale: 1.3, speedScale: 1.08 },
+      spawn: { firstDelay: 0.7, interval: 0.78, batch: 5, maxAlive: 115, spawnDist: 700, types: ['triangle', 'triangle', 'square', 'pentagon', 'dasher'], hpScale: 1.3, speedScale: 1.08 },
     },
     {
       killsToFull: 68,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.8, interval: 0.8, batch: 5, maxAlive: 125, spawnDist: 780, types: ['triangle', 'square', 'pentagon', 'triangle'], hpScale: 1.7, speedScale: 1.16 },
+      spawn: { firstDelay: 0.6, interval: 0.72, batch: 6, maxAlive: 135, spawnDist: 720, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter'], hpScale: 1.7, speedScale: 1.16 },
     },
     {
       killsToFull: 84,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.7, interval: 0.72, batch: 5, maxAlive: 145, spawnDist: 800, types: ['triangle', 'square', 'pentagon', 'square'], hpScale: 2.1, speedScale: 1.24 },
+      spawn: { firstDelay: 0.6, interval: 0.66, batch: 6, maxAlive: 155, spawnDist: 740, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'square'], hpScale: 2.1, speedScale: 1.24 },
     },
     {
       killsToFull: 100,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.7, interval: 0.62, batch: 6, maxAlive: 170, spawnDist: 820, types: ['triangle', 'square', 'pentagon', 'triangle', 'square'], hpScale: 2.6, speedScale: 1.32 },
+      spawn: { firstDelay: 0.6, interval: 0.58, batch: 7, maxAlive: 180, spawnDist: 760, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'triangle'], hpScale: 2.6, speedScale: 1.32 },
     },
   ],
 
@@ -195,8 +225,27 @@ export const CONFIG = {
       radius: 150, // multiplié par mods.areaMul
       color: '#ff4dd2',
     },
+    foudre: {
+      name: 'Foudre',
+      kind: 'chain', // frappe une cible puis rebondit sur les voisins
+      cooldown: 0.95,
+      damage: 12,
+      chainRange: 240, // portée de rebond
+      chainCount: 4, // nombre de cibles touchées
+      countPerLevel: 1, // +1 rebond / niveau
+      color: '#b6ff3c',
+    },
+    faisceau: {
+      name: 'Faisceau',
+      kind: 'beam', // rayon instantané qui traverse tout sur une ligne
+      cooldown: 1.0,
+      damage: 9,
+      beamLength: 540,
+      beamWidth: 18,
+      color: '#ff4dd2',
+    },
   },
-  maxWeapons: 4, // emplacements d'armes
+  maxWeapons: 6, // emplacements d'armes
   maxWeaponLevel: 8,
   bulletMax: 420,
 
@@ -220,4 +269,6 @@ export const PALETTES = [
   { name: 'Verdoyant', colors: ['#00d97e', '#2bff88', '#b6ff3c'] },
   { name: 'Nébuleuse', colors: ['#7a3cff', '#b14dff', '#ff4dd2'] },
   { name: 'Aurum', colors: ['#ff9a00', '#ffd000', '#fff3b0'] },
+  { name: 'Givre', colors: ['#3ad0ff', '#8af0ff', '#e8ffff'] },
+  { name: 'Sang', colors: ['#ff0033', '#ff4d6a', '#ff9bb0'] },
 ];

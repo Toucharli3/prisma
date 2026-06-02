@@ -2,6 +2,7 @@
 // chrono, barre de PV. (Combo & vague ajoutés en Phases 6/8.) Espace écran.
 
 import { CONFIG } from '../config.js';
+import { hexA } from '../engine/math.js';
 import { roundRect, fillBar } from './widgets.js';
 
 const FONT = '"Segoe UI", system-ui, sans-serif';
@@ -78,25 +79,96 @@ export function drawHud(R, world) {
   ctx.fillStyle = CONFIG.textPrimary;
   ctx.fillText(`SCORE ${world.score}`, vw - 16, 32);
 
-  // Barre de PV (bas-gauche).
-  const y = vh - 34;
-  const frac = Math.max(0, p.hp / p.maxHp);
-  fillBar(ctx, 16, y, 280, 16, frac, frac > 0.3 ? CONFIG.player.glowColor : CONFIG.danger);
-  ctx.fillStyle = CONFIG.textPrimary;
-  ctx.font = `600 12px ${FONT}`;
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(`${Math.max(0, Math.ceil(p.hp))} / ${p.maxHp}`, 24, y + 8);
+  // Panneau ÉQUIPEMENT (bas-droite) : stats d'améliorations + armes + PV.
+  drawStatsCard(ctx, vw, vh, world);
 
   if (CONFIG.debug) {
     ctx.fillStyle = CONFIG.textSecondary;
     ctx.font = `600 11px ${FONT}`;
-    ctx.textAlign = 'right';
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(
-      `ennemis:${world.enemies.count} tirs:${world.bullets.count} orbes:${world.orbs.count} kills:${world.kills}`,
-      vw - 16,
-      vh - 14
-    );
+    ctx.fillText(`ennemis:${world.enemies.count} tirs:${world.bullets.count} orbes:${world.orbs.count} kills:${world.kills}`, 16, vh - 14);
   }
+}
+
+// Carte d'état en bas à droite : multiplicateurs d'upgrades chiffrés, armes & PV.
+function drawStatsCard(ctx, vw, vh, world) {
+  const p = world.player;
+  const m = p.mods;
+  const rows = [
+    ['Dégâts', '×' + m.damageMul.toFixed(2), '#ff6a3d'],
+    ['Cadence', '×' + m.rateMul.toFixed(2), '#ff9a3d'],
+    ['Projectiles', '+' + m.projAdd, '#ffd34d'],
+    ['Vitesse', '×' + m.moveMul.toFixed(2), '#4dd6ff'],
+    ["Zone d'effet", '×' + m.areaMul.toFixed(2), '#c46dff'],
+    ['Collecte', '×' + m.collectMul.toFixed(2), '#4dffd0'],
+  ];
+  const cw = 226;
+  const cx = vw - 12 - cw;
+  const rowH = 16;
+  const headH = 18;
+  const ch = 12 + headH + rows.length * rowH + 16 + 34 + 26 + 10; // head+rows+ARMES+2 lignes chips+PV
+  const cy = vh - 12 - ch;
+
+  ctx.fillStyle = 'rgba(12,12,22,0.66)';
+  roundRect(ctx, cx, cy, cw, ch, 12);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  roundRect(ctx, cx, cy, cw, ch, 12);
+  ctx.stroke();
+
+  let yy = cy + 12 + 9;
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = CONFIG.textSecondary;
+  ctx.font = `700 11px ${FONT}`;
+  ctx.textAlign = 'left';
+  ctx.fillText('ÉQUIPEMENT', cx + 12, yy);
+  yy += headH;
+
+  ctx.font = `600 12px ${FONT}`;
+  for (const [label, val, col] of rows) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = CONFIG.textPrimary;
+    ctx.fillText(label, cx + 12, yy);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = col;
+    ctx.fillText(val, cx + cw - 12, yy);
+    yy += rowH;
+  }
+
+  yy += 4;
+  ctx.textAlign = 'left';
+  ctx.fillStyle = CONFIG.textSecondary;
+  ctx.font = `700 11px ${FONT}`;
+  ctx.fillText('ARMES', cx + 12, yy);
+  yy += 15;
+
+  ctx.font = `700 11px ${FONT}`;
+  let chx = cx + 12;
+  for (const wp of world.weapons.list) {
+    const t = `${wp.def.name} ${wp.level}`;
+    const wdt = ctx.measureText(t).width + 12;
+    if (chx + wdt > cx + cw - 8) {
+      chx = cx + 12;
+      yy += 17;
+    }
+    ctx.fillStyle = hexA(wp.def.color, 0.22);
+    roundRect(ctx, chx, yy - 8, wdt, 16, 5);
+    ctx.fill();
+    ctx.fillStyle = wp.def.color;
+    ctx.textAlign = 'left';
+    ctx.fillText(t, chx + 6, yy);
+    chx += wdt + 5;
+  }
+
+  // Barre de PV en bas de la carte.
+  const hpY = cy + ch - 22;
+  const frac = Math.max(0, p.hp / p.maxHp);
+  fillBar(ctx, cx + 12, hpY, cw - 24, 16, frac, frac > 0.3 ? CONFIG.player.glowColor : CONFIG.danger);
+  ctx.fillStyle = CONFIG.textPrimary;
+  ctx.font = `700 11px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${Math.max(0, Math.ceil(p.hp))} / ${p.maxHp} PV`, cx + cw / 2, hpY + 8);
 }

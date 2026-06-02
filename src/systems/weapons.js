@@ -39,24 +39,20 @@ function nearestEnemy(world) {
 export function createWeapons(world) {
   const list = [];
   const novas = []; // explosions actives (visuel + dégâts)
+  const chains = []; // éclairs Foudre actifs (visuel) : { pts:[{x,y}], life }
+  const beams = []; // rayons Faisceau actifs (visuel) : { x1,y1,x2,y2,color,life }
 
   // Stats effectives d'une arme à un niveau donné.
   function stats(def, level) {
     const lv = level - 1;
     return {
-      kind: def.kind,
-      color: def.color,
+      ...def,
       cooldown: def.cooldown != null ? def.cooldown * Math.pow(0.92, lv) : 0,
       damage: def.damage * (1 + 0.3 * lv),
       count: (def.count || 1) + (def.countPerLevel ? Math.floor(lv * def.countPerLevel) : 0),
       pierce: (def.pierce || 0) + (def.piercePerLevel ? lv * def.piercePerLevel : 0),
-      speed: def.speed,
-      bulletRadius: def.bulletRadius,
-      life: def.life,
+      chainCount: (def.chainCount || 0) + (def.countPerLevel ? Math.floor(lv * def.countPerLevel) : 0),
       spread: def.spread || 0,
-      radius: def.radius,
-      rotSpeed: def.rotSpeed,
-      nodeRadius: def.nodeRadius,
     };
   }
 
@@ -109,6 +105,61 @@ export function createWeapons(world) {
     if (world.onNova) world.onNova(w);
   }
 
+  // Foudre : frappe la cible la plus proche puis rebondit sur les voisins.
+  function doChain(w, damageEnemy) {
+    const p = world.player;
+    const dmg = w.damage * p.mods.damageMul;
+    const count = Math.max(1, w.chainCount + p.mods.projAdd);
+    const range2 = (w.chainRange || 240) ** 2;
+    const hit = [];
+    const pts = [{ x: p.x, y: p.y }];
+    let cx = p.x;
+    let cy = p.y;
+    for (let j = 0; j < count; j++) {
+      let best = null;
+      let bd = range2;
+      world.enemies.forEach((e) => {
+        if (!e.alive || hit.indexOf(e) >= 0) return;
+        const dx = e.x - cx;
+        const dy = e.y - cy;
+        const d = dx * dx + dy * dy;
+        if (d < bd) {
+          bd = d;
+          best = e;
+        }
+      });
+      if (!best) break;
+      hit.push(best);
+      pts.push({ x: best.x, y: best.y });
+      cx = best.x;
+      cy = best.y;
+      damageEnemy(best, dmg);
+    }
+    if (pts.length > 1) chains.push({ pts, color: w.color, life: 0.13 });
+  }
+
+  // Faisceau : rayon instantané qui traverse tous les ennemis sur une ligne.
+  function doBeam(w, damageEnemy) {
+    const p = world.player;
+    const ang = aimAngle();
+    if (ang == null) return;
+    const dmg = w.damage * p.mods.damageMul;
+    const len = w.beamLength || 520;
+    const halfW = (w.beamWidth || 18) / 2;
+    const dx = Math.cos(ang);
+    const dy = Math.sin(ang);
+    world.enemies.forEach((e) => {
+      if (!e.alive) return;
+      const rx = e.x - p.x;
+      const ry = e.y - p.y;
+      const t = rx * dx + ry * dy; // projection sur l'axe
+      if (t < 0 || t > len) return;
+      const perp = Math.abs(rx * -dy + ry * dx);
+      if (perp <= halfW + e.radius) damageEnemy(e, dmg);
+    });
+    beams.push({ x1: p.x, y1: p.y, x2: p.x + dx * len, y2: p.y + dy * len, color: w.color, life: 0.1 });
+  }
+
   return {
     list,
     novas,
@@ -116,6 +167,8 @@ export function createWeapons(world) {
     reset() {
       list.length = 0;
       novas.length = 0;
+      chains.length = 0;
+      beams.length = 0;
     },
 
     has(key) {
@@ -154,18 +207,27 @@ export function createWeapons(world) {
           }
           continue;
         }
+        if (w.kind === 'chain' || w.kind === 'beam') {
+          w.timer -= dt;
+          if (w.timer <= 0) {
+            w.pending = true; // dégâts appliqués dans applyContactDamage (grille à jour)
+            w.timer = w.cooldown / rate;
+          }
+          continue;
+        }
         // projectile
         w.timer -= dt;
         if (w.timer <= 0 && fireProjectile(w)) w.timer = w.cooldown / rate;
       }
 
-      // Avance les explosions nova (l'anneau grandit, la vie décroît).
       for (let i = novas.length - 1; i >= 0; i--) {
         const nv = novas[i];
         nv.life -= dt;
         nv.r = nv.maxR * (1 - nv.life / nv.maxLife);
         if (nv.life <= 0) novas.splice(i, 1);
       }
+      for (let i = chains.length - 1; i >= 0; i--) if ((chains[i].life -= dt) <= 0) chains.splice(i, 1);
+      for (let i = beams.length - 1; i >= 0; i--) if ((beams[i].life -= dt) <= 0) beams.splice(i, 1);
     },
 
     // Applique les dégâts de contact (orbital + nova), grille à jour.
@@ -204,6 +266,17 @@ export function createWeapons(world) {
           const dy = e.y - nv.y;
           if (dx * dx + dy * dy <= r2) damageEnemy(e, nv.damage);
         });
+      }
+
+      // Foudre / Faisceau (déclenchés ce frame ; touchent les ennemis, pas le boss).
+      for (const w of list) {
+        if (w.kind === 'chain' && w.pending) {
+          w.pending = false;
+          doChain(w, damageEnemy);
+        } else if (w.kind === 'beam' && w.pending) {
+          w.pending = false;
+          doBeam(w, damageEnemy);
+        }
       }
     },
 
@@ -244,6 +317,25 @@ export function createWeapons(world) {
         ctx.arc(nv.x, nv.y, nv.r, 0, TAU);
         ctx.stroke();
       }
+      ctx.lineCap = 'round';
+      for (const c of chains) {
+        ctx.strokeStyle = hexA(c.color, c.life / 0.13);
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(c.pts[0].x, c.pts[0].y);
+        for (let i = 1; i < c.pts.length; i++) ctx.lineTo(c.pts[i].x, c.pts[i].y);
+        ctx.stroke();
+      }
+      for (const bm of beams) {
+        const a = bm.life / 0.1;
+        ctx.strokeStyle = hexA(bm.color, a * 0.85);
+        ctx.lineWidth = 8 * a + 3;
+        ctx.beginPath();
+        ctx.moveTo(bm.x1, bm.y1);
+        ctx.lineTo(bm.x2, bm.y2);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
       R.normal();
     },
   };
