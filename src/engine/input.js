@@ -12,7 +12,7 @@ const MOVE = {
   right: ['KeyD', 'ArrowRight'],
 };
 
-const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space']);
+const PREVENT = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'F3']);
 
 const anyDown = (codes) => {
   for (let i = 0; i < codes.length; i++) if (keys.has(codes[i])) return true;

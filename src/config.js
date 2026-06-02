@@ -3,7 +3,7 @@
 
 export const CONFIG = {
   // --- Debug / perf ---
-  debug: true, // overlay FPS + infos (désactivable)
+  debug: false, // overlay FPS + infos (bascule avec F3)
   perf: false, // mode performance : réduit particules, désactive scanlines/floaters
   maxDPR: 1.5, // plafond devicePixelRatio (évite le sur-rendu HiDPI sur GPU intégré)
 
@@ -53,8 +53,8 @@ export const CONFIG = {
   // --- Ennemis (formes vectorielles « vidées ») ---
   // hp/speed sont multipliés par les facteurs de niveau.
   enemyTypes: {
-    triangle: { key: 'triangle', sides: 3, radius: 13, hp: 8, speed: 130, damage: 7, xp: 1 },
-    square: { key: 'square', sides: 4, radius: 18, hp: 32, speed: 64, damage: 13, xp: 3 },
+    triangle: { key: 'triangle', sides: 3, radius: 13, hp: 8, speed: 146, damage: 7, xp: 1 },
+    square: { key: 'square', sides: 4, radius: 18, hp: 32, speed: 78, damage: 13, xp: 3 },
     pentagon: {
       key: 'pentagon',
       sides: 5,
@@ -91,29 +91,29 @@ export const CONFIG = {
   // bossTrigger (% de couleur) ; le dernier 1-bossTrigger est gated par le boss. ---
   levels: [
     {
-      killsToFull: 44,
+      killsToFull: 40,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 1.2, interval: 1.4, batch: 3, maxAlive: 75, spawnDist: 760, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
+      spawn: { firstDelay: 0.8, interval: 1.0, batch: 4, maxAlive: 90, spawnDist: 760, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
     },
     {
-      killsToFull: 58,
+      killsToFull: 54,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 1.0, interval: 1.25, batch: 3, maxAlive: 90, spawnDist: 760, types: ['triangle', 'triangle', 'square', 'pentagon'], hpScale: 1.3, speedScale: 1.08 },
+      spawn: { firstDelay: 0.8, interval: 0.9, batch: 4, maxAlive: 105, spawnDist: 760, types: ['triangle', 'triangle', 'square', 'pentagon'], hpScale: 1.3, speedScale: 1.08 },
     },
     {
-      killsToFull: 72,
+      killsToFull: 68,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 1.0, interval: 1.1, batch: 4, maxAlive: 105, spawnDist: 780, types: ['triangle', 'square', 'pentagon', 'triangle'], hpScale: 1.7, speedScale: 1.16 },
+      spawn: { firstDelay: 0.8, interval: 0.8, batch: 5, maxAlive: 125, spawnDist: 780, types: ['triangle', 'square', 'pentagon', 'triangle'], hpScale: 1.7, speedScale: 1.16 },
     },
     {
-      killsToFull: 88,
+      killsToFull: 84,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.9, interval: 1.0, batch: 4, maxAlive: 120, spawnDist: 800, types: ['triangle', 'square', 'pentagon', 'square'], hpScale: 2.1, speedScale: 1.24 },
+      spawn: { firstDelay: 0.7, interval: 0.72, batch: 5, maxAlive: 145, spawnDist: 800, types: ['triangle', 'square', 'pentagon', 'square'], hpScale: 2.1, speedScale: 1.24 },
     },
     {
-      killsToFull: 104,
+      killsToFull: 100,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.9, interval: 0.85, batch: 5, maxAlive: 140, spawnDist: 820, types: ['triangle', 'square', 'pentagon', 'triangle', 'square'], hpScale: 2.6, speedScale: 1.32 },
+      spawn: { firstDelay: 0.7, interval: 0.62, batch: 6, maxAlive: 170, spawnDist: 820, types: ['triangle', 'square', 'pentagon', 'triangle', 'square'], hpScale: 2.6, speedScale: 1.32 },
     },
   ],
 
@@ -123,8 +123,8 @@ export const CONFIG = {
       name: 'Éclat',
       kind: 'projectile',
       auto: true,
-      cooldown: 0.3,
-      damage: 6,
+      cooldown: 0.27,
+      damage: 7,
       speed: 640,
       bulletRadius: 5,
       life: 1.0,

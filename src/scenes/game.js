@@ -6,6 +6,7 @@
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
+import { Save } from '../engine/save.js';
 import { CONFIG, PALETTES } from '../config.js';
 import { lerp, makeRng, hexA } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
@@ -123,7 +124,7 @@ export function createGameScene() {
 
   function advanceLevel() {
     if (world.levelIndex + 1 >= CONFIG.levels.length) {
-      app.victory({ time: world.time, kills: world.kills, level: world.level });
+      app.victory({ score: world.score, kills: world.kills, time: world.time, playerLevel: world.level, biome: world.levelIndex + 1, bestCombo: world.bestCombo });
       return;
     }
     loadLevel(world.levelIndex + 1);
@@ -386,7 +387,9 @@ export function createGameScene() {
     enemyBullets.sweep();
     orbs.sweep();
 
-    if (player.dead) app.gameOver({ time: world.time, kills: world.kills, level: world.levelIndex + 1 });
+    if (player.dead) {
+      app.gameOver({ score: world.score, kills: world.kills, time: world.time, playerLevel: world.level, biome: world.levelIndex + 1, bestCombo: world.bestCombo });
+    }
   }
 
   function drawWorld(alpha) {
@@ -464,6 +467,7 @@ export function createGameScene() {
       player.reset(CONFIG.arena.width / 2, CONFIG.arena.height / 2);
       weapons.reset();
       weapons.add('eclat');
+      for (const w of Save.startingWeapons()) weapons.add(w); // armes débloquées
       world.time = 0;
       world.kills = 0;
       world.xp = 0;

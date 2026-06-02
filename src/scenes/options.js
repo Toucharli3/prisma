@@ -4,6 +4,7 @@
 
 import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
+import { Save } from '../engine/save.js';
 import { CONFIG } from '../config.js';
 import { clamp } from '../engine/math.js';
 import { roundRect, fillBar } from '../ui/widgets.js';
@@ -36,15 +37,20 @@ export function createOptionsOverlay(onClose, onQuitMenu) {
       if (it.change && Input.pressed('ArrowLeft', 'KeyA', 'KeyQ')) {
         it.change(-1);
         Audio.uiMove();
+        Save.syncSettings();
       }
       if (it.change && Input.pressed('ArrowRight', 'KeyD')) {
         it.change(1);
         Audio.uiMove();
+        Save.syncSettings();
       }
       if (Input.pressed('Enter')) {
         Audio.uiSelect();
         if (it.action) it.action();
-        else if (it.change) it.change(1);
+        else if (it.change) {
+          it.change(1);
+          Save.syncSettings();
+        }
       }
       if (Input.pressed('Escape', 'KeyO')) {
         Audio.uiSelect();

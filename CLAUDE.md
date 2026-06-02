@@ -73,4 +73,40 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
       flottants, combo + score, vignette + scanlines (off en mode perf), menu
       principal animé (titre dégradé), transitions en fondu, visée souris,
       overlay d'options (visée, perf, volumes, mute) depuis menu et pause.
-- [ ] Phase 9 — Méta-progression & optimisation finale
+- [x] **Phase 9 — Méta-progression & optimisation finale** : sauvegarde
+      localStorage (`engine/save.js` : highscore, biome atteint, victoires,
+      armes de départ débloquées, réglages), passe d'équilibrage, profilage perf
+      (≈3.8 ms/frame avec 150 ennemis → ~4× la marge 60 fps). `debug:false` (F3).
+
+## Contrôles
+
+- Déplacement : **ZQSD / WASD / flèches** · tir **automatique** (ou visée souris en option)
+- **P / Échap** : pause · **O** : options · **M** : muet · **F3** : overlay debug (FPS)
+- Menus : **flèches / 1-2-3 / Entrée / clic**
+
+## Comment étendre (data-driven)
+
+- **Ajouter une arme** : ajoute une entrée dans `CONFIG.weapons` (`src/config.js`)
+  avec un `kind` (`projectile` | `orbital` | `nova`). Référence-la dans
+  `systems/upgrades.js` (déblocage) — c'est tout. Pour un nouveau `kind`, gère-le
+  dans `systems/weapons.js` (fire/applyContactDamage/render).
+- **Ajouter un niveau/biome** : ajoute une palette dans `PALETTES` et une entrée
+  dans `CONFIG.levels` (spawn, killsToFull, bossTrigger). Tout le reste suit.
+- **Ajouter un ennemi** : ajoute une entrée dans `CONFIG.enemyTypes` (sides, hp,
+  speed, `behavior`...) et inclus sa clé dans les `types` d'un niveau. Un nouveau
+  comportement se code dans `entities/enemy.js` (`update`).
+
+## Choix d'architecture
+
+- **Boucle timestep fixe + interpolation** (`engine/loop.js`) : simulation
+  déterministe, rendu fluide à tout taux de rafraîchissement.
+- **Pas de `shadowBlur` par frame** : tous les halos sont des sprites offscreen
+  pré-rendus, mis en cache par couleur/forme, puis « blittés » (`render.glowSprite`/
+  `polySprite`/`softDot`).
+- **Pools** partout (ennemis, projectiles, orbes) ; particules & chiffres de
+  dégâts en **typed arrays** (ring buffer plafonné).
+- **Spatial hash** reconstruit chaque frame pour les collisions (O(voisins)).
+- **Scènes** : `main.js` détient le contexte `app` + les transitions ; les
+  overlays (pause/upgrade/options) figent le monde sans perdre son état.
+- **Colorfield** : champ basse résolution (ImageData) upscalé + lissé ; le % est
+  piloté par les kills (objectif), indépendant du rendu.

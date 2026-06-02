@@ -6,6 +6,7 @@ import { CONFIG } from './config.js';
 import { Render } from './engine/render.js';
 import { Input } from './engine/input.js';
 import { Audio } from './engine/audio.js';
+import { Save } from './engine/save.js';
 import { createLoop } from './engine/loop.js';
 import { createMenuScene } from './scenes/menu.js';
 import { createGameScene } from './scenes/game.js';
@@ -16,6 +17,8 @@ const canvas = document.getElementById('game');
 Render.init(canvas);
 Input.init(canvas);
 Audio.init(); // contexte créé au 1er geste utilisateur
+Save.load(); // méta-progression + réglages
+Save.applySettings();
 
 // Contexte partagé passé à toutes les scènes.
 const app = {
@@ -34,7 +37,11 @@ const app = {
 
 const loop = createLoop({
   update(dt) {
-    if (Input.pressed('KeyM')) Audio.toggleMute(); // mute global
+    if (Input.pressed('KeyM')) {
+      Audio.toggleMute();
+      Save.syncSettings();
+    }
+    if (Input.pressed('F3')) CONFIG.debug = !CONFIG.debug; // overlay debug
     if (app.scene.update) app.scene.update(dt);
     Input.endFrame();
   },
@@ -62,8 +69,7 @@ app.victory = (stats) => app.setScene(createVictoryScene(stats));
 app.gotoMenu();
 loop.start();
 
-// Handle de debug (uniquement en mode debug) pour l'inspection/tests.
-if (CONFIG.debug) {
-  window.__prisma = app;
-  window.__audio = Audio;
-}
+// Handle d'inspection (jeu local solo) : utile pour tests/réglages. F3 affiche l'overlay.
+window.__prisma = app;
+window.__audio = Audio;
+window.__save = Save;

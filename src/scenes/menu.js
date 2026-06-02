@@ -4,6 +4,7 @@
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
+import { Save } from '../engine/save.js';
 import { CONFIG, PALETTES } from '../config.js';
 import { TAU } from '../engine/math.js';
 import { createOptionsOverlay } from './options.js';
@@ -95,6 +96,21 @@ export function createMenuScene(opts = {}) {
       ctx.fillStyle = `rgba(232,232,255,${blink})`;
       ctx.font = `700 22px ${FONT}`;
       ctx.fillText('Entrée / clic pour commencer', vw / 2, vh * 0.66);
+
+      // Méta-progression (highscore + déblocages).
+      const d = Save.data;
+      ctx.fillStyle = CONFIG.textSecondary;
+      ctx.font = `600 15px ${FONT}`;
+      if (d.highScore > 0) {
+        ctx.fillText(`Meilleur score : ${d.highScore}   ·   Biome atteint : ${d.furthestBiome}/5${d.wins > 0 ? '   ·   ★ Monde sauvé' : ''}`, vw / 2, vh * 0.74);
+      }
+      const unlocked = Save.startingWeapons();
+      if (unlocked.length) {
+        ctx.fillStyle = CONFIG.player.glowColor;
+        ctx.font = `600 14px ${FONT}`;
+        const names = unlocked.map((w) => CONFIG.weapons[w].name).join(', ');
+        ctx.fillText(`Armes de départ débloquées : Éclat, ${names}`, vw / 2, vh * 0.79);
+      }
 
       ctx.fillStyle = CONFIG.textSecondary;
       ctx.font = `500 15px ${FONT}`;
