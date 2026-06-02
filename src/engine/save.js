@@ -14,6 +14,7 @@ const MILESTONES = [
 
 const DEFAULTS = () => ({
   name: '',
+  skin: 'prisme',
   highScore: 0,
   bestCombo: 0,
   runs: 0,
@@ -101,5 +102,24 @@ export const Save = {
   setName(n) {
     this.data.name = (n || '').slice(0, 16);
     this.persist();
+  },
+
+  // --- Skins ---
+  unlockedSkins() {
+    return CONFIG.skins.filter((k) => this.data.furthestBiome >= k.biome);
+  },
+  getSkin() {
+    return CONFIG.skins.find((k) => k.id === this.data.skin) || CONFIG.skins[0];
+  },
+  setSkin(id) {
+    this.data.skin = id;
+    this.persist();
+  },
+  cycleSkin(dir) {
+    const list = this.unlockedSkins();
+    let i = list.findIndex((k) => k.id === this.data.skin);
+    if (i < 0) i = 0;
+    i = (i + dir + list.length) % list.length;
+    this.setSkin(list[i].id);
   },
 };

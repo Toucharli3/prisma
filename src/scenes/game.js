@@ -6,6 +6,7 @@
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
+import { Save } from '../engine/save.js';
 import { CONFIG, PALETTES } from '../config.js';
 import { lerp, makeRng, hexA } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
@@ -493,6 +494,9 @@ export function createGameScene() {
       app = _app;
       // Équité compét : tout le monde démarre avec Éclat uniquement.
       player.reset(CONFIG.arena.width / 2, CONFIG.arena.height / 2);
+      const skin = Save.getSkin(); // skin cosmétique choisi
+      player.coreColor = skin.core;
+      player.glowColor = skin.glow;
       weapons.reset();
       weapons.add('eclat');
       world.time = 0;

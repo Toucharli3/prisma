@@ -44,6 +44,16 @@ export const CONFIG = {
     glowColor: '#00e5ff',
   },
 
+  // Skins du Prisme (cosmétique). Débloqués en atteignant le biome `biome`.
+  skins: [
+    { id: 'prisme', name: 'Prisme', core: '#ffffff', glow: '#00e5ff', biome: 0 },
+    { id: 'braise', name: 'Braise', core: '#ffffff', glow: '#ff8a00', biome: 2 },
+    { id: 'maree', name: 'Marée', core: '#ffffff', glow: '#18ffd5', biome: 3 },
+    { id: 'verdoyant', name: 'Verdoyant', core: '#ffffff', glow: '#2bff88', biome: 4 },
+    { id: 'nebuleuse', name: 'Nébuleuse', core: '#ffffff', glow: '#b14dff', biome: 5 },
+    { id: 'aurum', name: 'Aurum', core: '#fff3b0', glow: '#ffd000', biome: 6 },
+  ],
+
   // Stats du joueur (équilibrage de base)
   playerStats: {
     radius: 13,

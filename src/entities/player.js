@@ -21,6 +21,8 @@ export class Player {
     this.angle = 0;
     this.inv = 0; // timer d'invincibilité (i-frames)
     this.aimMode = 'auto'; // 'auto' | 'mouse' (option Phase 8)
+    this.coreColor = CONFIG.player.coreColor; // surchargé par le skin choisi
+    this.glowColor = CONFIG.player.glowColor;
 
     // Modificateurs cumulés par les upgrades (Phase 4). Multiplicateurs neutres
     // par défaut ; remis à zéro à chaque nouvelle partie.
@@ -100,7 +102,7 @@ export class Player {
 
     // Traînée comète (blending additif, du plus ancien au plus récent).
     R.additive();
-    const dot = R.softDot(CONFIG.player.glowColor, this.radius * 1.15);
+    const dot = R.softDot(this.glowColor, this.radius * 1.15);
     for (let i = 0; i < this.trailCount; i++) {
       const idx = (this.trailHead - this.trailCount + i + TRAIL_LEN) % TRAIL_LEN;
       const t = (i + 1) / this.trailCount; // 0 (vieux) -> 1 (récent)
@@ -108,8 +110,8 @@ export class Player {
     }
     R.normal();
 
-    // Corps : halo cyan + cœur blanc. Clignote pendant les i-frames.
+    // Corps : halo + cœur (couleur du skin). Clignote pendant les i-frames.
     const blink = this.inv > 0 && (this.inv * 16) % 2 < 1 ? 0.35 : 1;
-    R.drawSprite(R.glowSprite(CONFIG.player.coreColor, CONFIG.player.glowColor, this.radius), ix, iy, 0, 1, blink);
+    R.drawSprite(R.glowSprite(this.coreColor, this.glowColor, this.radius), ix, iy, 0, 1, blink);
   }
 }
