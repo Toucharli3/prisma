@@ -48,7 +48,8 @@ export function drawHud(R, world) {
   ctx.fillStyle = CONFIG.textSecondary;
   ctx.font = `700 12px ${FONT}`;
   ctx.textBaseline = 'top';
-  ctx.fillText(`${world.palette.name.toUpperCase()} · NIVEAU ${world.level}`, vw / 2, gy + gh + 7);
+  const endless = world.biome > CONFIG.levels.length;
+  ctx.fillText(`${world.palette.name.toUpperCase()} · BIOME ${world.biome}${endless ? ' ∞' : ''} · NIV ${world.level}`, vw / 2, gy + gh + 7);
 
   // Combo (centre) — apparaît à partir de ×3, avec un pop quand récent.
   if (world.combo >= 3) {

@@ -97,19 +97,12 @@ export function createMenuScene(opts = {}) {
       ctx.font = `700 22px ${FONT}`;
       ctx.fillText('Entrée / clic pour commencer', vw / 2, vh * 0.66);
 
-      // Méta-progression (highscore + déblocages).
+      // Méta-progression (record personnel).
       const d = Save.data;
-      ctx.fillStyle = CONFIG.textSecondary;
-      ctx.font = `600 15px ${FONT}`;
       if (d.highScore > 0) {
-        ctx.fillText(`Meilleur score : ${d.highScore}   ·   Biome atteint : ${d.furthestBiome}/5${d.wins > 0 ? '   ·   ★ Monde sauvé' : ''}`, vw / 2, vh * 0.74);
-      }
-      const unlocked = Save.startingWeapons();
-      if (unlocked.length) {
-        ctx.fillStyle = CONFIG.player.glowColor;
-        ctx.font = `600 14px ${FONT}`;
-        const names = unlocked.map((w) => CONFIG.weapons[w].name).join(', ');
-        ctx.fillText(`Armes de départ débloquées : Éclat, ${names}`, vw / 2, vh * 0.79);
+        ctx.fillStyle = CONFIG.textSecondary;
+        ctx.font = `600 15px ${FONT}`;
+        ctx.fillText(`Ton record : ${d.highScore}   ·   Biome max : ${d.furthestBiome}   ·   Combo max ×${d.bestCombo}`, vw / 2, vh * 0.74);
       }
 
       ctx.fillStyle = CONFIG.textSecondary;

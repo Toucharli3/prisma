@@ -11,7 +11,6 @@ import { createLoop } from './engine/loop.js';
 import { createMenuScene } from './scenes/menu.js';
 import { createGameScene } from './scenes/game.js';
 import { createGameOverScene } from './scenes/gameover.js';
-import { createVictoryScene } from './scenes/victory.js';
 
 const canvas = document.getElementById('game');
 Render.init(canvas);
@@ -63,7 +62,6 @@ app.loop = loop;
 app.gotoMenu = () => app.setScene(createMenuScene());
 app.startGame = (opts) => app.setScene(createGameScene(opts));
 app.gameOver = (stats) => app.setScene(createGameOverScene(stats));
-app.victory = (stats) => app.setScene(createVictoryScene(stats));
 
 // Démarre sur le menu principal.
 app.gotoMenu();

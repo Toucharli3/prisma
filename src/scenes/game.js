@@ -6,7 +6,6 @@
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
-import { Save } from '../engine/save.js';
 import { CONFIG, PALETTES } from '../config.js';
 import { lerp, makeRng, hexA } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
@@ -34,6 +33,30 @@ const ORBITAL_HIT_CD = 0.35;
 const FONT = '"Segoe UI", system-ui, sans-serif';
 
 const xpForLevel = (level) => Math.round(CONFIG.xp.base * Math.pow(CONFIG.xp.growth, level - 1));
+const CAMPAIGN = CONFIG.levels.length;
+
+// Construit la config d'un biome : campagne (0..4) puis extrapolation SANS FIN.
+function buildLevel(biome) {
+  const base = CONFIG.levels[Math.min(biome, CAMPAIGN - 1)];
+  const extra = Math.max(0, biome - (CAMPAIGN - 1)); // biomes au-delà de la campagne
+  const e = CONFIG.endless;
+  const s = base.spawn;
+  return {
+    paletteIndex: biome % PALETTES.length,
+    bossTrigger: base.bossTrigger,
+    killsToFull: Math.round(base.killsToFull * (1 + extra * e.killsGrowth)),
+    spawn: {
+      firstDelay: s.firstDelay,
+      spawnDist: s.spawnDist,
+      types: s.types,
+      interval: Math.max(0.32, s.interval / Math.pow(e.intervalDecay, extra)),
+      batch: s.batch + Math.floor(extra / e.batchEvery),
+      maxAlive: Math.min(e.maxAliveCap, s.maxAlive + extra * 8),
+      hpScale: s.hpScale * Math.pow(e.hpGrowth, extra),
+      speedScale: Math.min(e.speedCap, s.speedScale * Math.pow(1.03, extra)),
+    },
+  };
+}
 
 export function createGameScene() {
   let app = null;
@@ -71,6 +94,8 @@ export function createGameScene() {
     rng: makeRng(0xc0ffee),
     time: 0,
     levelIndex: 0,
+    biome: 1,
+    campaignCleared: false,
     palette: PALETTES[0],
     kills: 0,
     xp: 0,
@@ -95,12 +120,14 @@ export function createGameScene() {
   world.onBossSpawn = () => Audio.bossSpawn();
   world.onBossDeath = () => Audio.bossDeath();
 
-  // --- Niveaux ---
-  function loadLevel(index) {
-    const lvl = CONFIG.levels[index];
-    world.levelIndex = index;
-    world.palette = PALETTES[index];
-    Audio.setBiome(index);
+  // --- Niveaux / biomes ---
+  function loadLevel(biome) {
+    const lvl = buildLevel(biome);
+    world.levelConfig = lvl;
+    world.levelIndex = biome;
+    world.biome = biome + 1; // 1-based pour l'affichage
+    world.palette = PALETTES[lvl.paletteIndex];
+    Audio.setBiome(lvl.paletteIndex);
     enemies.clear();
     bullets.clear();
     enemyBullets.clear();
@@ -122,11 +149,10 @@ export function createGameScene() {
     mode = 'play';
   }
 
+  // SANS FIN : on enchaîne toujours le biome suivant (la mort est la seule fin).
   function advanceLevel() {
-    if (world.levelIndex + 1 >= CONFIG.levels.length) {
-      app.victory({ score: world.score, kills: world.kills, time: world.time, playerLevel: world.level, biome: world.levelIndex + 1, bestCombo: world.bestCombo });
-      return;
-    }
+    world.score += CONFIG.score.biomeClear * world.biome;
+    if (world.levelIndex === CAMPAIGN - 1) world.campaignCleared = true; // campagne bouclée
     loadLevel(world.levelIndex + 1);
   }
 
@@ -166,7 +192,7 @@ export function createGameScene() {
     world.combo++;
     world.comboTimer = CONFIG.comboWindow;
     if (world.combo > world.bestCombo) world.bestCombo = world.combo;
-    world.score += CONFIG.scorePerKill * world.combo;
+    world.score += Math.round(CONFIG.score.perKill * world.combo * (1 + world.levelIndex * CONFIG.score.depthBonus));
     const n = CONFIG.perf ? CONFIG.particles.killBurstPerf : CONFIG.particles.killBurst;
     particles.burst(e.x, e.y, n, world.palette.colors, world.rng);
     orbs.obtain().init(e.x, e.y, e.xp);
@@ -208,6 +234,7 @@ export function createGameScene() {
     for (let i = 0; i < 8; i++) {
       orbs.obtain().init(bx + (world.rng() * 2 - 1) * 40, by + (world.rng() * 2 - 1) * 40, Math.ceil(boss.xp / 8));
     }
+    world.score += CONFIG.score.bossKill * world.biome;
     colorfield.percent = 1; // débloque la complétion du niveau
     boss = null;
     world.boss = null;
@@ -347,7 +374,7 @@ export function createGameScene() {
     if (boss) boss.update(dt, world);
 
     // Déclenchement du boss vers bossTrigger % de couleur.
-    if (!bossSpawned && colorfield.percent >= CONFIG.levels[world.levelIndex].bossTrigger) spawnBoss();
+    if (!bossSpawned && colorfield.percent >= world.levelConfig.bossTrigger) spawnBoss();
 
     rebuildGrid();
     bulletCollisions();
@@ -446,13 +473,13 @@ export function createGameScene() {
     ctx.fillStyle = CONFIG.textPrimary;
     ctx.font = `900 84px ${FONT}`;
     ctx.fillText('100%', vw / 2, vh / 2 - 6);
+    const campaignEnd = world.levelIndex === CAMPAIGN - 1;
     ctx.font = `800 32px ${FONT}`;
-    const last = world.levelIndex + 1 >= CONFIG.levels.length;
-    ctx.fillText(last ? 'DERNIER BIOME PURIFIÉ' : `${world.palette.name.toUpperCase()} — BIOME PURIFIÉ`, vw / 2, vh / 2 + 64);
+    ctx.fillText(campaignEnd ? 'CAMPAGNE TERMINÉE — MODE SANS FIN' : `${world.palette.name.toUpperCase()} — BIOME PURIFIÉ`, vw / 2, vh / 2 + 64);
     if (completeT > 1.2) {
       ctx.fillStyle = CONFIG.textSecondary;
       ctx.font = `600 18px ${FONT}`;
-      ctx.fillText(last ? 'Entrée / clic pour la victoire' : 'Entrée / clic pour le biome suivant', vw / 2, vh / 2 + 116);
+      ctx.fillText('Entrée / clic pour le biome suivant', vw / 2, vh / 2 + 116);
     }
   }
 
@@ -464,10 +491,10 @@ export function createGameScene() {
 
     enter(_app) {
       app = _app;
+      // Équité compét : tout le monde démarre avec Éclat uniquement.
       player.reset(CONFIG.arena.width / 2, CONFIG.arena.height / 2);
       weapons.reset();
       weapons.add('eclat');
-      for (const w of Save.startingWeapons()) weapons.add(w); // armes débloquées
       world.time = 0;
       world.kills = 0;
       world.xp = 0;
@@ -475,6 +502,7 @@ export function createGameScene() {
       world.xpNext = xpForLevel(1);
       world.bestCombo = 0;
       world.score = 0;
+      world.campaignCleared = false;
       pendingLevels = 0;
       pauseOptions = null;
       loadLevel(0);

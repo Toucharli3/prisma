@@ -10,8 +10,25 @@ export const CONFIG = {
   // --- Juice / options ---
   maxShake: 24, // amplitude max du screen shake (px)
   comboWindow: 2.4, // délai (s) avant reset du combo
-  scorePerKill: 10,
   aimMode: 'auto', // 'auto' | 'mouse' (réglage, appliqué au démarrage de partie)
+
+  // --- Score (classement) ---
+  score: {
+    perKill: 10, // × combo × (1 + profondeur)
+    depthBonus: 0.08, // bonus de score par biome de profondeur
+    biomeClear: 500, // bonus à la purification d'un biome (× n° de biome)
+    bossKill: 300, // bonus à la mort d'un boss (× n° de biome)
+  },
+
+  // --- Mode sans fin (au-delà de la campagne de 5 biomes) ---
+  endless: {
+    hpGrowth: 1.13, // PV ennemis × par biome supplémentaire
+    speedCap: 1.8, // plafond du multiplicateur de vitesse ennemie
+    intervalDecay: 1.05, // intervalle de spawn divisé par ce facteur / biome sup.
+    batchEvery: 2, // +1 ennemi par vague tous les N biomes sup.
+    maxAliveCap: 220, // plafond d'ennemis simultanés (perf)
+    killsGrowth: 0.12, // killsToFull × (1 + n × growth)
+  },
 
   // --- Couleurs de base / UI (DA section 2) ---
   bgColor: '#0a0a0f',
