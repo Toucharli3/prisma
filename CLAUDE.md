@@ -2,7 +2,10 @@
 
 Survival-arène top-down en vue **néon vectorielle**. Le monde a été vidé de sa
 couleur par *le Statique* ; le joueur (*le Prisme*) restaure la couleur en
-détruisant des ennemis. Objectif d'un niveau : **100 % de couleur restaurée**.
+détruisant des ennemis. Chaque biome = **100 % de couleur** puis un **boss**.
+Après les 5 biomes de campagne, le jeu continue en **mode SANS FIN** (difficulté
+infinie, boss de plus en plus forts) : la **mort est la seule fin**, le **score**
+sert au **classement** (en ligne via Vercel/Upstash, sinon local). Voir `DEPLOY.md`.
 
 ## Comment lancer
 

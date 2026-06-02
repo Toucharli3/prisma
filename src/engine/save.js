@@ -13,6 +13,7 @@ const MILESTONES = [
 ];
 
 const DEFAULTS = () => ({
+  name: '',
   highScore: 0,
   bestCombo: 0,
   runs: 0,
@@ -95,5 +96,10 @@ export const Save = {
   // Armes de départ débloquées (en plus de l'Éclat).
   startingWeapons() {
     return MILESTONES.filter((m) => this.data.unlocked.includes(m.id)).map((m) => m.weapon);
+  },
+
+  setName(n) {
+    this.data.name = (n || '').slice(0, 16);
+    this.persist();
   },
 };

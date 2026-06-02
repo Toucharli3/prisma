@@ -28,3 +28,28 @@ canvas {
   cursor: crosshair;
   image-rendering: auto;
 }
+
+/* Champ de saisie du pseudo (overlay sur le canvas, menu uniquement). */
+.prisma-name {
+  position: absolute;
+  z-index: 10;
+  display: none;
+  transform: translateX(-50%);
+  padding: 10px 14px;
+  font: 700 18px "Segoe UI", system-ui, sans-serif;
+  text-align: center;
+  color: #e8e8ff;
+  background: rgba(18, 18, 30, 0.92);
+  border: 2px solid rgba(0, 229, 255, 0.55);
+  border-radius: 12px;
+  outline: none;
+  caret-color: #00e5ff;
+}
+.prisma-name::placeholder {
+  color: #8a8a99;
+  font-weight: 500;
+}
+.prisma-name:focus {
+  border-color: #00e5ff;
+  box-shadow: 0 0 18px rgba(0, 229, 255, 0.35);
+}
