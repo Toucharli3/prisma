@@ -14,6 +14,7 @@ import { SpatialGrid } from '../engine/grid.js';
 import { Particles } from '../engine/particles.js';
 import { Floaters } from '../engine/floaters.js';
 import { ColorField } from '../systems/colorfield.js';
+import { buildBackdrop } from '../systems/backdrop.js';
 import { Player } from '../entities/player.js';
 import { Enemy } from '../entities/enemy.js';
 import { Bullet } from '../entities/bullet.js';
@@ -128,6 +129,7 @@ export function createGameScene() {
     world.levelIndex = biome;
     world.biome = biome + 1; // 1-based pour l'affichage
     world.palette = PALETTES[lvl.paletteIndex];
+    Render.setBackdrop(buildBackdrop(world.palette, CONFIG.arena.width, CONFIG.arena.height));
     Audio.setBiome(lvl.paletteIndex);
     enemies.clear();
     bullets.clear();

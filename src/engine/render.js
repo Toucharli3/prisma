@@ -22,6 +22,7 @@ export const Render = {
   _lastBeginTime: 0,
   _vignette: null,
   _scanPattern: null,
+  _backdrop: null, // fond de biome procédural (canvas)
 
   init(canvasEl) {
     this.canvas = canvasEl;
@@ -80,6 +81,10 @@ export const Render = {
     this.shakeTrauma = Math.min(1, this.shakeTrauma + amount);
   },
 
+  setBackdrop(canvas) {
+    this._backdrop = canvas;
+  },
+
   // Pré-rend une tuile de grille une seule fois (calque statique).
   _buildGrid() {
     const s = CONFIG.gridSize;
@@ -87,7 +92,7 @@ export const Render = {
     tile.width = s;
     tile.height = s;
     const t = tile.getContext('2d');
-    t.strokeStyle = CONFIG.gridColor;
+    t.strokeStyle = 'rgba(255,255,255,0.045)'; // grille subtile lisible sur le fond de biome
     t.lineWidth = 1;
     t.beginPath();
     t.moveTo(0.5, 0);
@@ -130,6 +135,11 @@ export const Render = {
     this._ty = this.viewH / 2 - camY;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, this._tx * this.dpr, this._ty * this.dpr);
 
+    // Fond de biome (scalé sur l'arène) sous la grille et les entités.
+    if (this._backdrop) {
+      const a = CONFIG.arena;
+      ctx.drawImage(this._backdrop, 0, 0, this._backdrop.width, this._backdrop.height, 0, 0, a.width, a.height);
+    }
     this._drawGrid();
   },
 
@@ -291,6 +301,31 @@ export const Render = {
       c.lineWidth = 2;
       c.strokeStyle = outline;
       c.stroke();
+
+      // Anneau intérieur facetté (décalé) -> aspect « créature ».
+      c.beginPath();
+      const off = Math.PI / sides;
+      for (let i = 0; i < sides; i++) {
+        const a = -HALF_PI + off + (i * TAU) / sides;
+        const x = cx + Math.cos(a) * radius * 0.52;
+        const y = cx + Math.sin(a) * radius * 0.52;
+        if (i) c.lineTo(x, y);
+        else c.moveTo(x, y);
+      }
+      c.closePath();
+      c.globalAlpha = 0.5;
+      c.lineWidth = 1.5;
+      c.stroke();
+      c.globalAlpha = 1;
+
+      // Cœur lumineux central.
+      const cg = c.createRadialGradient(cx, cx, 0, cx, cx, radius * 0.5);
+      cg.addColorStop(0, outline);
+      cg.addColorStop(1, rgbCss(gl.r, gl.g, gl.b, 0));
+      c.fillStyle = cg;
+      c.beginPath();
+      c.arc(cx, cx, radius * 0.5, 0, TAU);
+      c.fill();
     });
   },
 

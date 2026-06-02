@@ -75,6 +75,8 @@ export class Player {
     this.px = this.x;
     this.py = this.y;
     if (this.inv > 0) this.inv -= dt;
+    // Régénération passive (parties plus longues).
+    if (this.hp > 0 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + CONFIG.playerStats.regen * dt);
 
     Input.moveVector(this._mv);
     const sp = this.speed * this.mods.moveMul;

@@ -55,10 +55,16 @@ export class Bullet {
   }
 
   render(R, alpha) {
-    R.drawSprite(
-      R.glowSprite('#ffffff', this.color, this.radius, 2.4),
-      lerp(this.px, this.x, alpha),
-      lerp(this.py, this.y, alpha)
-    );
+    const ix = lerp(this.px, this.x, alpha);
+    const iy = lerp(this.py, this.y, alpha);
+    const spr = R.glowSprite('#ffffff', this.color, this.radius, 2.4);
+    const ctx = R.ctx;
+    // Étiré dans le sens du déplacement -> trait lumineux (bolt).
+    ctx.save();
+    ctx.translate(ix, iy);
+    ctx.rotate(Math.atan2(this.vy, this.vx));
+    ctx.scale(1.9, 0.72);
+    ctx.drawImage(spr.canvas, -spr.half, -spr.half);
+    ctx.restore();
   }
 }

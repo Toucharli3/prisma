@@ -9,6 +9,7 @@ import { Leaderboard } from '../engine/leaderboard.js';
 import { createNameInput } from '../ui/nameInput.js';
 import { CONFIG, PALETTES } from '../config.js';
 import { TAU } from '../engine/math.js';
+import { buildBackdrop } from '../systems/backdrop.js';
 import { createOptionsOverlay } from './options.js';
 
 const FONT = '"Segoe UI", system-ui, sans-serif';
@@ -41,6 +42,7 @@ export function createMenuScene() {
       app = _app;
       t = 0;
       Audio.setBiome(0);
+      Render.setBackdrop(buildBackdrop(PALETTES[(Math.random() * PALETTES.length) | 0], CONFIG.arena.width, CONFIG.arena.height));
       nameInput = createNameInput(() => Save.data.name, (n) => Save.setName(n));
       refreshBoard();
     },

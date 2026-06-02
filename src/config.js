@@ -57,10 +57,11 @@ export const CONFIG = {
   // Stats du joueur (équilibrage de base)
   playerStats: {
     radius: 13,
-    speed: 270, // px/s
-    maxHp: 100,
-    collectRadius: 108, // rayon de l'aimant fort
-    iframes: 0.8, // invincibilité après un coup reçu (s) (Phase 2)
+    speed: 275, // px/s
+    maxHp: 140, // plus de survie -> parties plus longues
+    regen: 1.2, // régénération passive (PV/s) -> les dégâts mineurs ne sont pas permanents
+    collectRadius: 120, // rayon de l'aimant fort
+    iframes: 0.95, // invincibilité après un coup reçu (s)
   },
 
   // Couleur des ennemis « vidés » (avant destruction)
@@ -146,31 +147,32 @@ export const CONFIG = {
 
   // --- Niveaux (data-driven). Palette = PALETTES[index]. Boss déclenché à
   // bossTrigger (% de couleur) ; le dernier 1-bossTrigger est gated par le boss. ---
+  // Démarrage doux, montée régulière (la mort doit arriver après plusieurs minutes).
   levels: [
     {
-      killsToFull: 40,
+      killsToFull: 34,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.7, interval: 0.85, batch: 5, maxAlive: 100, spawnDist: 700, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
+      spawn: { firstDelay: 1.0, interval: 1.05, batch: 3, maxAlive: 70, spawnDist: 720, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
     },
     {
-      killsToFull: 54,
+      killsToFull: 48,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.7, interval: 0.78, batch: 5, maxAlive: 115, spawnDist: 700, types: ['triangle', 'triangle', 'square', 'pentagon', 'dasher'], hpScale: 1.3, speedScale: 1.08 },
+      spawn: { firstDelay: 0.8, interval: 0.95, batch: 4, maxAlive: 90, spawnDist: 720, types: ['triangle', 'triangle', 'square', 'pentagon', 'dasher'], hpScale: 1.25, speedScale: 1.06 },
     },
     {
-      killsToFull: 68,
+      killsToFull: 62,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.6, interval: 0.72, batch: 6, maxAlive: 135, spawnDist: 720, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter'], hpScale: 1.7, speedScale: 1.16 },
+      spawn: { firstDelay: 0.7, interval: 0.85, batch: 4, maxAlive: 110, spawnDist: 740, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter'], hpScale: 1.6, speedScale: 1.12 },
     },
     {
-      killsToFull: 84,
+      killsToFull: 78,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.6, interval: 0.66, batch: 6, maxAlive: 155, spawnDist: 740, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'square'], hpScale: 2.1, speedScale: 1.24 },
+      spawn: { firstDelay: 0.7, interval: 0.76, batch: 5, maxAlive: 135, spawnDist: 760, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'square'], hpScale: 2.0, speedScale: 1.18 },
     },
     {
-      killsToFull: 100,
+      killsToFull: 94,
       bossTrigger: 0.78,
-      spawn: { firstDelay: 0.6, interval: 0.58, batch: 7, maxAlive: 180, spawnDist: 760, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'triangle'], hpScale: 2.6, speedScale: 1.32 },
+      spawn: { firstDelay: 0.6, interval: 0.66, batch: 6, maxAlive: 160, spawnDist: 780, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'triangle'], hpScale: 2.5, speedScale: 1.26 },
     },
   ],
 
@@ -253,10 +255,11 @@ export const CONFIG = {
   particles: { max: 1500, killBurst: 16, killBurstPerf: 8 },
 
   // --- Restauration de couleur (mécanisme signature) ---
-  colorfield: { cols: 48, rows: 32, splashRadius: 2.6, ambientMax: 0.3, killsToFull: 55 },
+  colorfield: { cols: 48, rows: 32, splashRadius: 2.6, ambientMax: 0.2, killsToFull: 55 },
 
   // --- XP / niveaux ---
-  xp: { base: 5, growth: 1.22 }, // XP requise = base * growth^(niveau-1)
+  // Courbe plus raide : level-ups plus espacés (on n'est plus coupé toutes les 10 s).
+  xp: { base: 12, growth: 1.28 }, // XP requise = base * growth^(niveau-1)
   levelUp: { slowmoTime: 0.35, slowmoScale: 0.18 }, // ralenti à la montée de niveau
   orbMax: 400,
   orb: { radius: 7, magnetSpeed: 540, lifetime: 18 },
