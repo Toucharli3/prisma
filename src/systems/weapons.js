@@ -13,6 +13,9 @@ const ORBITAL_HIT_CD = 0.35; // intervalle de dégâts orbital par ennemi
 const NODE_QUERY_PAD = 24;
 
 function nearestEnemy(world) {
+  // Le boss est prioritaire : les projectiles le ciblent -> il meurt -> on progresse
+  // (sinon les nuées détournent l'auto-aim et on reste bloqué sur un biome).
+  if (world.boss) return world.boss;
   let best = null;
   let bd = Infinity;
   const px = world.player.x;
@@ -26,13 +29,6 @@ function nearestEnemy(world) {
       best = e;
     }
   });
-  // Le boss est aussi une cible valide (sinon l'auto-aim l'ignorerait).
-  if (world.boss) {
-    const dx = world.boss.x - px;
-    const dy = world.boss.y - py;
-    const d = dx * dx + dy * dy;
-    if (d < bd) best = world.boss;
-  }
   return best;
 }
 

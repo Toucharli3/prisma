@@ -5,8 +5,8 @@
 import { CONFIG } from '../config.js';
 import { lerp, TAU } from '../engine/math.js';
 
-const HOMING_ACCEL = 150; // dérive douce vers le joueur (réduite : il faut bouger)
-const MAX_DRIFT = 58; // plafond de la vitesse de dérive (hors aimant fort)
+const HOMING_ACCEL = 300; // dérive vers le joueur (XP fiable -> choix réguliers)
+const MAX_DRIFT = 130; // plafond de la vitesse de dérive (hors aimant fort)
 
 export class Orb {
   constructor() {

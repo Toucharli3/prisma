@@ -35,13 +35,15 @@ export function createSpawner() {
       if (!cfg) return;
       this.timer -= dt;
       if (this.timer > 0) return;
-      this.timer = cfg.interval;
+      // Pendant le boss : duel quasi propre, juste un filet d'adds.
+      this.timer = world.bossActive ? cfg.interval * 4 : cfg.interval;
+      const batch = world.bossActive ? 1 : cfg.batch;
 
-      for (let i = 0; i < cfg.batch; i++) {
+      for (let i = 0; i < batch; i++) {
         if (world.enemies.count >= cfg.maxAlive) break;
         const def = pickType(cfg, world.rng);
         const p = ringPos(world.player, cfg.spawnDist, world.rng);
-        world.enemies.obtain().init(def, p.x, p.y, cfg.hpScale || 1, cfg.speedScale || 1);
+        world.enemies.obtain().init(def, p.x, p.y, cfg.hpScale || 1, cfg.speedScale || 1, cfg.damageScale || 1);
       }
     },
   };

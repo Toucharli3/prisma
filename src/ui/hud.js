@@ -2,7 +2,7 @@
 // chrono, barre de PV. (Combo & vague ajoutés en Phases 6/8.) Espace écran.
 
 import { CONFIG } from '../config.js';
-import { hexA } from '../engine/math.js';
+import { hexA, TAU } from '../engine/math.js';
 import { roundRect, fillBar } from './widgets.js';
 
 const FONT = '"Segoe UI", system-ui, sans-serif';
@@ -78,6 +78,9 @@ export function drawHud(R, world) {
   ctx.font = `700 13px ${FONT}`;
   ctx.fillStyle = CONFIG.textPrimary;
   ctx.fillText(`SCORE ${world.score}`, vw - 16, 32);
+
+  // Mini-carte (haut-gauche).
+  drawMinimap(ctx, world);
 
   // Panneau ÉQUIPEMENT (bas-droite) : stats d'améliorations + armes + PV.
   drawStatsCard(ctx, vw, vh, world);
@@ -171,4 +174,37 @@ function drawStatsCard(ctx, vw, vh, world) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(`${Math.max(0, Math.ceil(p.hp))} / ${p.maxHp} PV`, cx + cw / 2, hpY + 8);
+}
+
+// Mini-carte (haut-gauche) : joueur, ennemis, boss.
+function drawMinimap(ctx, world) {
+  const a = CONFIG.arena;
+  const mw = 132;
+  const mh = Math.round((mw * a.height) / a.width);
+  const mx = 12;
+  const my = 12;
+  ctx.fillStyle = 'rgba(10,10,20,0.5)';
+  roundRect(ctx, mx, my, mw, mh, 8);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.lineWidth = 1;
+  roundRect(ctx, mx, my, mw, mh, 8);
+  ctx.stroke();
+
+  const sx = mw / a.width;
+  const sy = mh / a.height;
+  // Ennemis.
+  ctx.fillStyle = 'rgba(180,180,200,0.8)';
+  world.enemies.forEach((e) => ctx.fillRect(mx + e.x * sx - 1, my + e.y * sy - 1, 2, 2));
+  // Boss.
+  if (world.boss) {
+    ctx.fillStyle = CONFIG.danger;
+    ctx.fillRect(mx + world.boss.x * sx - 3, my + world.boss.y * sy - 3, 6, 6);
+  }
+  // Joueur.
+  const p = world.player;
+  ctx.fillStyle = p.glowColor || CONFIG.player.glowColor;
+  ctx.beginPath();
+  ctx.arc(mx + p.x * sx, my + p.y * sy, 3, 0, TAU);
+  ctx.fill();
 }

@@ -51,7 +51,7 @@ export class Enemy {
     this.splitType = null;
   }
 
-  init(def, x, y, hpScale = 1, speedScale = 1) {
+  init(def, x, y, hpScale = 1, speedScale = 1, damageScale = 1) {
     this.alive = true;
     this.type = def.key;
     this.sides = def.sides;
@@ -59,7 +59,7 @@ export class Enemy {
     this.maxHp = def.hp * hpScale;
     this.hp = this.maxHp;
     this.speed = def.speed * speedScale;
-    this.damage = def.damage;
+    this.damage = def.damage * damageScale;
     this.xp = def.xp;
     this.behavior = def.behavior || 'chase';
     this.preferredRange = def.preferredRange || 0;
@@ -67,7 +67,7 @@ export class Enemy {
     this.shootTimer = (def.shootCooldown || 0) * (0.4 + Math.random() * 0.6);
     this.fireReady = false;
     this.bulletSpeed = def.bulletSpeed || 0;
-    this.bulletDamage = def.bulletDamage || 0;
+    this.bulletDamage = (def.bulletDamage || 0) * damageScale;
     this.dashSpeed = def.dashSpeed || 0;
     this.dashRange = def.dashRange || 0;
     this.dashCd = def.dashCd || 0;

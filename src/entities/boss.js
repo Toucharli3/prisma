@@ -61,8 +61,9 @@ export class Boss {
     this.maxHp = Math.round(b.baseHp * (1 + levelIndex * b.hpPerLevel));
     this.hp = this.maxHp;
     this.speed = b.speed;
-    this.contactDamage = b.contactDamage;
-    this.bulletDamage = b.bulletDamage + levelIndex * 1.5;
+    const dmgScale = Math.pow(CONFIG.endless.damageBase, levelIndex); // dégâts boss ↑ avec la profondeur
+    this.contactDamage = b.contactDamage * dmgScale;
+    this.bulletDamage = b.bulletDamage * dmgScale;
     this.bulletSpeed = b.bulletSpeed;
     this.patternCd = b.patternCd;
     this.patternTimer = 1.4;

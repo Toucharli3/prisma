@@ -51,11 +51,12 @@ function buildLevel(biome) {
       firstDelay: s.firstDelay,
       spawnDist: s.spawnDist,
       types: s.types,
-      interval: Math.max(0.32, s.interval / Math.pow(e.intervalDecay, extra)),
+      interval: Math.max(e.intervalMin, s.interval / Math.pow(e.intervalDecay, extra)),
       batch: s.batch + Math.floor(extra / e.batchEvery),
-      maxAlive: Math.min(e.maxAliveCap, s.maxAlive + extra * 8),
+      maxAlive: Math.min(e.maxAliveCap, s.maxAlive + extra * 10),
       hpScale: s.hpScale * Math.pow(e.hpGrowth, extra),
-      speedScale: Math.min(e.speedCap, s.speedScale * Math.pow(1.03, extra)),
+      speedScale: Math.min(e.speedCap, s.speedScale * Math.pow(1.05, extra)),
+      damageScale: Math.pow(e.damageBase, biome), // dégâts ennemis ↑ chaque biome (TOUS)
     },
   };
 }
@@ -93,6 +94,7 @@ export function createGameScene() {
     colorfield,
     grid,
     boss: null,
+    bossActive: false,
     rng: makeRng(0xc0ffee),
     time: 0,
     levelIndex: 0,
@@ -141,6 +143,7 @@ export function createGameScene() {
     world.boss = null;
     bossSpawned = false;
     bossActive = false;
+    world.bossActive = false;
     world.combo = 0;
     world.comboTimer = 0;
     spawner.reset(lvl.spawn);
@@ -198,7 +201,7 @@ export function createGameScene() {
     world.score += Math.round(CONFIG.score.perKill * world.combo * (1 + world.levelIndex * CONFIG.score.depthBonus));
     const n = CONFIG.perf ? CONFIG.particles.killBurstPerf : CONFIG.particles.killBurst;
     particles.burst(e.x, e.y, n, world.palette.colors, world.rng);
-    orbs.obtain().init(e.x, e.y, e.xp);
+    orbs.obtain().init(e.x, e.y, e.xp * (1 + world.levelIndex * CONFIG.xp.orbXpDepth));
     colorfield.onKill(e.x, e.y, world.rng);
     if (bossActive && colorfield.percent > 0.99) colorfield.percent = 0.99; // gated par le boss
 
@@ -208,7 +211,7 @@ export function createGameScene() {
       const sc = world.levelConfig.spawn;
       for (let i = 0; i < e.splitInto; i++) {
         const a = (i / e.splitInto) * TAU + world.rng();
-        enemies.obtain().init(childDef, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, sc.hpScale * 0.6, sc.speedScale);
+        enemies.obtain().init(childDef, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, sc.hpScale * 0.6, sc.speedScale, sc.damageScale || 1);
       }
     }
   }
@@ -228,6 +231,8 @@ export function createGameScene() {
   function spawnBoss() {
     bossSpawned = true;
     bossActive = true;
+    world.bossActive = true;
+    enemies.clear(); // l'arène se vide pour le duel (sinon les nuées bloquent les tirs sur le boss)
     const a = CONFIG.arena;
     const ang = Math.atan2(player.y - a.height / 2, player.x - a.width / 2) + Math.PI;
     const bx = Math.max(a.margin + 60, Math.min(a.width - a.margin - 60, player.x + Math.cos(ang) * 520));
@@ -252,6 +257,7 @@ export function createGameScene() {
     boss = null;
     world.boss = null;
     bossActive = false;
+    world.bossActive = false;
     Render.addShake(0.85);
     if (world.onBossDeath) world.onBossDeath();
   }

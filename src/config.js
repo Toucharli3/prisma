@@ -21,13 +21,19 @@ export const CONFIG = {
   },
 
   // --- Mode sans fin (au-delà de la campagne de 5 biomes) ---
+  // La difficulté ne plafonne PLUS (sauf la vitesse) : PV, DÉGÂTS et densité montent
+  // sans fin -> la mort devient inévitable, la run se termine selon le skill.
   endless: {
-    hpGrowth: 1.13, // PV ennemis × par biome supplémentaire
-    speedCap: 1.8, // plafond du multiplicateur de vitesse ennemie
-    intervalDecay: 1.05, // intervalle de spawn divisé par ce facteur / biome sup.
-    batchEvery: 2, // +1 ennemi par vague tous les N biomes sup.
-    maxAliveCap: 220, // plafond d'ennemis simultanés (perf)
-    killsGrowth: 0.12, // killsToFull × (1 + n × growth)
+    hpGrowth: 1.17, // PV ennemis × par biome supplémentaire
+    speedCap: 2.05, // seul plafond (sinon injouable)
+    intervalDecay: 1.06,
+    intervalMin: 0.28,
+    batchEvery: 2,
+    maxAliveCap: 260, // plafond perf (testé OK ~60 fps)
+    killsGrowth: 0.1,
+    // Dégâts ennemis (contact + balles) × damageBase^biome sur TOUS les biomes.
+    // C'est CE qui finit par tuer un joueur optimisé.
+    damageBase: 1.125,
   },
 
   // --- Couleurs de base / UI (DA section 2) ---
@@ -60,7 +66,7 @@ export const CONFIG = {
     speed: 275, // px/s
     maxHp: 140, // plus de survie -> parties plus longues
     regen: 1.2, // régénération passive (PV/s) -> les dégâts mineurs ne sont pas permanents
-    collectRadius: 120, // rayon de l'aimant fort
+    collectRadius: 145, // rayon de l'aimant fort
     iframes: 0.95, // invincibilité après un coup reçu (s)
   },
 
@@ -129,7 +135,7 @@ export const CONFIG = {
   // --- Boss — stats de base, mises à l'échelle par niveau. 2 variantes alternées. ---
   boss: {
     radius: 52,
-    baseHp: 520,
+    baseHp: 420,
     hpPerLevel: 0.6, // hp = baseHp * (1 + index * hpPerLevel)
     speed: 54,
     contactDamage: 18,
@@ -258,11 +264,13 @@ export const CONFIG = {
   colorfield: { cols: 48, rows: 32, splashRadius: 2.6, ambientMax: 0.2, killsToFull: 55 },
 
   // --- XP / niveaux ---
-  // Courbe plus raide : level-ups plus espacés (on n'est plus coupé toutes les 10 s).
-  xp: { base: 12, growth: 1.28 }, // XP requise = base * growth^(niveau-1)
+  // Courbe modérée : level-ups réguliers SANS exploser (sinon plus aucun choix en
+  // fin). L'XP des orbes monte avec la profondeur (orbXpDepth) pour garder la
+  // cadence ~constante quel que soit le biome.
+  xp: { base: 14, growth: 1.16, orbXpDepth: 0.22 }, // requis = base*growth^(niv-1) ; orbe ×(1+biome*orbXpDepth)
   levelUp: { slowmoTime: 0.35, slowmoScale: 0.18 }, // ralenti à la montée de niveau
   orbMax: 400,
-  orb: { radius: 7, magnetSpeed: 540, lifetime: 18 },
+  orb: { radius: 7, magnetSpeed: 560, lifetime: 26 },
 };
 
 // Palettes par niveau / biome — la couleur que le monde « reprend ».
