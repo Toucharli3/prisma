@@ -8,7 +8,7 @@
 
 import { Redis } from '@upstash/redis';
 
-const KEY = 'prisma:scores:v1';
+const KEY = 'prisma:scores:v2'; // v2 : classement en ligne remis à zéro
 const SEP_CODE = 0x241f; // Unit Separator (sépare name/biome/ts dans le membre)
 const SEP = String.fromCharCode(SEP_CODE);
 const MAX_SCORE = 50000000;

@@ -73,6 +73,7 @@ export class Boss {
     this.hitFlash = 0;
     this.orbitalCd = 0;
     this.lastBulletId = -1;
+    this.life = b.retreat; // se retire si non tué dans ce délai
     this.xp = b.xp;
   }
 
@@ -101,6 +102,7 @@ export class Boss {
     this.x = Math.max(m, Math.min(a.width - m, this.x));
     this.y = Math.max(m, Math.min(a.height - m, this.y));
     this.angle += this.rotSpeed * dt;
+    this.life -= dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.orbitalCd > 0) this.orbitalCd -= dt;
     this.patternTimer -= dt;

@@ -4,7 +4,7 @@
 import { CONFIG } from '../config.js';
 import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
-import { clamp, lerp } from '../engine/math.js';
+import { clamp, lerp, hexA, TAU } from '../engine/math.js';
 
 const TRAIL_LEN = 16;
 
@@ -141,6 +141,14 @@ export class Player {
       const t = (i + 1) / this.trailCount; // 0 (vieux) -> 1 (récent)
       R.drawSprite(dot, this.trail[idx * 2], this.trail[idx * 2 + 1], 0, 0.35 + t * 0.65, t * 0.5);
     }
+    // Aura pulsante (style).
+    const ctx = R.ctx;
+    const ph = performance.now() * 0.004;
+    ctx.strokeStyle = hexA(this.glowColor, 0.22 + 0.12 * Math.sin(ph));
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(ix, iy, this.radius * 2.2 + Math.sin(ph) * 3, 0, TAU);
+    ctx.stroke();
     R.normal();
 
     // Corps : halo + cœur (couleur du skin). Clignote pendant les i-frames.

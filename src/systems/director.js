@@ -40,13 +40,16 @@ export function createDirector() {
       return out.length ? out : ['triangle'];
     },
 
-    // Multiplicateurs de difficulté du palier courant (linéaires).
-    scales() {
+    // Multiplicateurs de difficulté pilotés par le TEMPS (m = minutes).
+    // PV exponentiels (suivent la puissance multiplicative du joueur),
+    // dégâts linéaires (ce qui finit par tuer une fois encerclé).
+    scales(world) {
       const d = CONFIG.director;
+      const m = (world ? world.time : 0) / 60;
       return {
-        hp: 1 + this.tier * d.hpPerTier,
-        dmg: 1 + this.tier * d.dmgPerTier,
-        speed: Math.min(d.speedCap, 1 + this.tier * d.speedPerTier),
+        hp: Math.pow(d.hpGrowPerMin, m),
+        dmg: 1 + d.dmgRatePerMin * m,
+        speed: Math.min(d.speedCap, 1 + d.speedRatePerMin * m),
       };
     },
 
@@ -71,8 +74,9 @@ export function createDirector() {
         if (this.tier > 0 && this.tier % d.bossEveryTiers === 0 && world.onSpawnBoss) world.onSpawnBoss(this.tier);
       }
 
-      // Spawning selon la phase.
-      const maxAlive = Math.min(d.maxAliveCap, d.baseMaxAlive + this.tier * d.maxAlivePerTier);
+      // Spawning selon la phase. Densité ET cadence montent avec le temps.
+      const m = world.time / 60;
+      const maxAlive = Math.min(d.maxAliveCap, Math.round(d.densStart + d.densPerMin * m));
       this.spawnTimer -= dt;
       if (this.spawnTimer > 0) return;
 
@@ -89,10 +93,10 @@ export function createDirector() {
         interval = d.breatherInterval; // respiration : presque rien
         batch = 1;
       }
-      this.spawnTimer = interval;
+      this.spawnTimer = interval / (1 + d.intervalTightenPerMin * m);
 
       const types = this.availableTypes();
-      const sc = this.scales();
+      const sc = this.scales(world);
       for (let i = 0; i < batch; i++) {
         if (world.enemies.count >= maxAlive) break;
         const def = CONFIG.enemyTypes[types[(world.rng() * types.length) | 0]];

@@ -4,7 +4,7 @@
 import { CONFIG } from '../config.js';
 import { Audio } from './audio.js';
 
-const KEY = 'prisma.save.v1';
+const KEY = 'prisma.save.v2'; // v2 : remise à zéro (anciens scores de test effacés)
 
 // Paliers de déblocage : armes de départ supplémentaires.
 const MILESTONES = [

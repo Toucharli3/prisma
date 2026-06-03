@@ -2,7 +2,7 @@
 // si indisponible (dev local, pas encore déployé), bascule sur un classement
 // localStorage. Conserve toujours une copie locale en secours.
 
-const LOCAL_KEY = 'prisma.local.scores.v1';
+const LOCAL_KEY = 'prisma.local.scores.v2'; // v2 : classement local remis à zéro
 const TIMEOUT = 4000;
 
 let online = null; // null = inconnu, true/false après un appel

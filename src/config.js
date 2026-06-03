@@ -67,7 +67,7 @@ export const CONFIG = {
     maxHp: 140, // plus de survie -> parties plus longues
     regen: 1.2, // régénération passive (PV/s) -> les dégâts mineurs ne sont pas permanents
     collectRadius: 145, // rayon de l'aimant fort
-    iframes: 0.95, // invincibilité après un coup reçu (s)
+    iframes: 0.7, // invincibilité après un coup (court -> les dégâts montent)
   },
 
   // Couleur des ennemis « vidés » (avant destruction)
@@ -92,19 +92,21 @@ export const CONFIG = {
     buildEnd: 22,
     peakEnd: 28,
     telegraph: 1.8,
-    baseMaxAlive: 46,
-    maxAlivePerTier: 6,
-    maxAliveCap: 135,
     baseInterval: 1.1,
     peakInterval: 0.4,
     breatherInterval: 1.8,
     batch: 2,
     peakBatch: 3,
     spawnDist: 820,
-    hpPerTier: 0.24, // ennemis plus coriaces -> la nuée se remplit -> pression
-    dmgPerTier: 0.12, // dégâts linéaires (ce qui finit par tuer)
-    speedPerTier: 0.02,
+    // --- Scaling piloté par le TEMPS (m = minutes écoulées) ---
+    hpGrowPerMin: 1.4, // PV ennemis = base × 1.4^m (exponentiel : suit ta puissance)
+    dmgRatePerMin: 0.72, // dégâts = base × (1 + 0.72·m)
+    speedRatePerMin: 0.05, // vitesse = min(cap, 1 + 0.05·m)
     speedCap: 1.9,
+    densStart: 34, // densité = densStart + densPerMin·m (plafond maxAliveCap) — départ doux
+    densPerMin: 11,
+    maxAliveCap: 140,
+    intervalTightenPerMin: 0.06, // spawns plus denses avec le temps
     bossEveryTiers: 4,
     // Plus d'ennemis À DISTANCE en profondeur -> enfer de balles à esquiver
     // (la survie devient un test d'esquive, pas de DPS).
@@ -165,14 +167,15 @@ export const CONFIG = {
   // --- Boss — stats de base, mises à l'échelle par niveau. 2 variantes alternées. ---
   boss: {
     radius: 52,
-    baseHp: 420,
-    hpPerLevel: 0.45, // hp = baseHp * (1 + tier * hpPerLevel)
-    speed: 54,
-    contactDamage: 18,
+    baseHp: 700, // plus de PV (auto-aim ne le prioritise plus -> vrai combat)
+    hpPerLevel: 0.5, // hp = baseHp * (1 + tier * hpPerLevel)
+    speed: 56,
+    contactDamage: 20,
     bulletDamage: 8,
-    bulletSpeed: 240,
-    patternCd: 1.7,
+    bulletSpeed: 250,
+    patternCd: 1.6,
     rotSpeed: 0.5,
+    retreat: 38, // se retire s'il n'est pas tué (pas de blocage)
     xp: 40,
     // `patterns` = indices des patterns définis dans entities/boss.js.
     variants: [

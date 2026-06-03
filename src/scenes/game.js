@@ -54,6 +54,13 @@ export function createGameScene() {
   const colorfield = new ColorField(CONFIG.arena.width, CONFIG.arena.height);
   const grid = new SpatialGrid(CONFIG.arena.width, CONFIG.arena.height, CONFIG.grid.cell);
   const director = createDirector();
+  const rings = []; // ondes de choc (style) : { x, y, r, maxR, life, maxLife, color, w }
+
+  function spawnRing(x, y, maxR, color, width) {
+    if (CONFIG.perf) return;
+    rings.push({ x, y, r: 0, maxR, life: 0.34, maxLife: 0.34, color, w: width || 3 });
+    if (rings.length > 36) rings.shift();
+  }
 
   const world = {
     player, enemies, bullets, enemyBullets, orbs, particles, floaters, colorfield, grid,
@@ -143,12 +150,13 @@ export function createGameScene() {
     world.score += Math.round(CONFIG.score.perKill * world.combo * (1 + world.tier * CONFIG.score.depthBonus));
     const n = CONFIG.perf ? CONFIG.particles.killBurstPerf : CONFIG.particles.killBurst;
     particles.burst(e.x, e.y, n, world.palette.colors, world.rng);
+    spawnRing(e.x, e.y, e.radius * 3.6, world.palette.colors[(world.rng() * 3) | 0], 2.5);
     orbs.obtain().init(e.x, e.y, e.xp * (1 + world.tier * CONFIG.xp.orbXpDepth));
     colorfield.onKill(e.x, e.y, world.rng);
 
     if (e.splitInto > 0 && e.splitType && enemies.count < CONFIG.director.maxAliveCap) {
       const childDef = CONFIG.enemyTypes[e.splitType];
-      const sc = director.scales();
+      const sc = director.scales(world);
       for (let i = 0; i < e.splitInto; i++) {
         const a = (i / e.splitInto) * TAU + world.rng();
         enemies.obtain().init(childDef, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, sc.hp * 0.6, sc.speed, sc.dmg);
@@ -169,6 +177,8 @@ export function createGameScene() {
     const bx = boss.x;
     const by = boss.y;
     particles.burst(bx, by, CONFIG.perf ? 30 : 64, world.palette.colors, world.rng, 1.7);
+    spawnRing(bx, by, 260, world.palette.colors[2], 7);
+    spawnRing(bx, by, 180, '#ffffff', 4);
     for (let i = 0; i < 10; i++) orbs.obtain().init(bx + (world.rng() * 2 - 1) * 50, by + (world.rng() * 2 - 1) * 50, Math.ceil(boss.xp / 10) * (1 + world.tier * CONFIG.xp.orbXpDepth));
     world.score += CONFIG.score.bossKill * (world.tier + 1);
     player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.25); // récompense : soin
@@ -295,7 +305,14 @@ export function createGameScene() {
         enemyBullets.obtain().init(e.x, e.y, Math.cos(e.fireAngle) * e.bulletSpeed, Math.sin(e.fireAngle) * e.bulletSpeed, { damage: e.bulletDamage, radius: 6, life: 3, pierce: 0, color: CONFIG.danger });
       }
     });
-    if (boss) boss.update(dt, world);
+    if (boss) {
+      boss.update(dt, world);
+      if (boss.life <= 0) {
+        // Le boss se retire (non tué) -> pas de blocage, pas de récompense.
+        boss = null;
+        world.boss = null;
+      }
+    }
 
     rebuildGrid();
     bulletCollisions();
@@ -327,6 +344,15 @@ export function createGameScene() {
 
     particles.update(dt);
     floaters.update(dt);
+    for (let i = rings.length - 1; i >= 0; i--) {
+      const rg = rings[i];
+      rg.life -= dt;
+      if (rg.life <= 0) {
+        rings.splice(i, 1);
+        continue;
+      }
+      rg.r = rg.maxR * (1 - rg.life / rg.maxLife);
+    }
     enemies.sweep();
     bullets.sweep();
     enemyBullets.sweep();
@@ -352,6 +378,18 @@ export function createGameScene() {
     orbs.forEach((o) => o.render(Render, pc, alpha));
     Render.normal();
     particles.render(Render);
+    // Ondes de choc (style).
+    const ctx = Render.ctx;
+    Render.additive();
+    for (const rg of rings) {
+      const a = rg.life / rg.maxLife;
+      ctx.strokeStyle = hexA(rg.color, a);
+      ctx.lineWidth = rg.w * a + 1;
+      ctx.beginPath();
+      ctx.arc(rg.x, rg.y, rg.r, 0, TAU);
+      ctx.stroke();
+    }
+    Render.normal();
     weapons.render(Render, ix, iy);
     player.render(Render, alpha);
     floaters.render(Render);
@@ -391,6 +429,7 @@ export function createGameScene() {
       orbs.clear();
       particles.clear();
       floaters.clear();
+      rings.length = 0;
       boss = null;
       world.boss = null;
       director.reset();
