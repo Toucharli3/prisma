@@ -180,6 +180,11 @@ export const Audio = {
     this._tone('sawtooth', 180, 60, 0.3, 0.22, this.sfxGain, 900);
     this._noiseBurst(0.28, 0.22, 1400);
   },
+  dash() {
+    if (!this.ctx || !this._throttle('dash', 0.12)) return;
+    this._tone('sine', 300, 760, 0.16, 0.16, this.sfxGain, 2600);
+    this._noiseBurst(0.12, 0.1, 2800);
+  },
   bossShoot() {
     if (!this.ctx || !this._throttle('bossShoot', 0.09)) return;
     this._tone('sawtooth', 150, 80, 0.12, 0.14, this.sfxGain, 1200);

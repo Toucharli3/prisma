@@ -49,8 +49,20 @@ export function drawHud(R, world) {
   ctx.fillStyle = CONFIG.textSecondary;
   ctx.font = `700 12px ${FONT}`;
   ctx.textBaseline = 'top';
-  const endless = world.biome > CONFIG.levels.length;
-  ctx.fillText(`${world.palette.name.toUpperCase()} · BIOME ${world.biome}${endless ? ' ∞' : ''} · NIV ${world.level}`, vw / 2, gy + gh + 7);
+  ctx.fillText(`${world.palette.name.toUpperCase()} · PALIER ${world.tier + 1} · NIV ${world.level}`, vw / 2, gy + gh + 7);
+
+  // Avertissement de pic (télégraphe) + flash de palier.
+  if (world.telegraph) {
+    ctx.fillStyle = hexA(CONFIG.danger, 0.5 + 0.5 * Math.sin(world.time * 18));
+    ctx.font = `800 22px ${FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚠ VAGUE !', vw / 2, vh * 0.2);
+  } else if (world.tierFlash > 0) {
+    ctx.fillStyle = hexA(world.palette.colors[2], Math.min(1, world.tierFlash));
+    ctx.font = `800 30px ${FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`PALIER ${world.tier + 1}`, vw / 2, vh * 0.2);
+  }
 
   // Combo (centre) — apparaît à partir de ×3, avec un pop quand récent.
   if (world.combo >= 3) {
@@ -78,6 +90,23 @@ export function drawHud(R, world) {
   ctx.font = `700 13px ${FONT}`;
   ctx.fillStyle = CONFIG.textPrimary;
   ctx.fillText(`SCORE ${world.score}`, vw - 16, 32);
+
+  // Jauge de dash (bas-centre).
+  const dr = 1 - Math.max(0, p.dashCd) / CONFIG.dash.cooldown;
+  const dbw = 130;
+  const dbx = (vw - dbw) / 2;
+  const dby = vh - 20;
+  ctx.fillStyle = 'rgba(255,255,255,0.1)';
+  roundRect(ctx, dbx, dby, dbw, 8, 4);
+  ctx.fill();
+  ctx.fillStyle = dr >= 1 ? CONFIG.player.glowColor : 'rgba(180,180,200,0.55)';
+  roundRect(ctx, dbx, dby, dbw * dr, 8, 4);
+  ctx.fill();
+  ctx.fillStyle = dr >= 1 ? CONFIG.textPrimary : CONFIG.textSecondary;
+  ctx.font = `700 10px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(dr >= 1 ? 'DASH ⟫ ESPACE' : 'DASH', vw / 2, dby - 3);
 
   // Mini-carte (haut-gauche).
   drawMinimap(ctx, world);

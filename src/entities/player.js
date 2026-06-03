@@ -3,6 +3,7 @@
 
 import { CONFIG } from '../config.js';
 import { Input } from '../engine/input.js';
+import { Audio } from '../engine/audio.js';
 import { clamp, lerp } from '../engine/math.js';
 
 const TRAIL_LEN = 16;
@@ -20,6 +21,10 @@ export class Player {
     this.hp = s.maxHp;
     this.angle = 0;
     this.inv = 0; // timer d'invincibilité (i-frames)
+    this.dashCd = 0; // cooldown du dash
+    this.dashTime = 0; // durée de dash restante
+    this.dashVX = 0;
+    this.dashVY = 0;
     this.aimMode = 'auto'; // 'auto' | 'mouse' (option Phase 8)
     this.coreColor = CONFIG.player.coreColor; // surchargé par le skin choisi
     this.glowColor = CONFIG.player.glowColor;
@@ -53,6 +58,8 @@ export class Player {
     this.hp = this.maxHp;
     this.angle = 0;
     this.inv = 0;
+    this.dashCd = 0;
+    this.dashTime = 0;
     this.aimMode = 'auto';
     this.mods = this._defaultMods();
     this.trailHead = 0;
@@ -78,18 +85,42 @@ export class Player {
     // Régénération passive (parties plus longues).
     if (this.hp > 0 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + CONFIG.playerStats.regen * dt);
 
+    if (this.dashCd > 0) this.dashCd -= dt;
     Input.moveVector(this._mv);
-    const sp = this.speed * this.mods.moveMul;
-    this.x += this._mv.x * sp * dt;
-    this.y += this._mv.y * sp * dt;
+    if (this._mv.x || this._mv.y) this.angle = Math.atan2(this._mv.y, this._mv.x);
+
+    // Dash (Espace) : ruée rapide + i-frames.
+    if (this.dashTime <= 0 && this.dashCd <= 0 && Input.pressed('Space', 'ShiftLeft')) {
+      let dx = this._mv.x;
+      let dy = this._mv.y;
+      if (dx === 0 && dy === 0) {
+        dx = Math.cos(this.angle);
+        dy = Math.sin(this.angle);
+      }
+      const l = Math.hypot(dx, dy) || 1;
+      this.dashVX = (dx / l) * CONFIG.dash.speed;
+      this.dashVY = (dy / l) * CONFIG.dash.speed;
+      this.dashTime = CONFIG.dash.duration;
+      this.dashCd = CONFIG.dash.cooldown;
+      this.inv = Math.max(this.inv, CONFIG.dash.iframes);
+      Audio.dash();
+    }
+
+    if (this.dashTime > 0) {
+      this.dashTime -= dt;
+      this.x += this.dashVX * dt;
+      this.y += this.dashVY * dt;
+    } else {
+      const sp = this.speed * this.mods.moveMul;
+      this.x += this._mv.x * sp * dt;
+      this.y += this._mv.y * sp * dt;
+    }
 
     // Bornage à l'arène.
     const a = CONFIG.arena;
     const m = a.margin + this.radius;
     this.x = clamp(this.x, m, a.width - m);
     this.y = clamp(this.y, m, a.height - m);
-
-    if (this._mv.x || this._mv.y) this.angle = Math.atan2(this._mv.y, this._mv.x);
 
     // Enregistre le point de traînée courant.
     this.trail[this.trailHead * 2] = this.x;

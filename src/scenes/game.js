@@ -1,7 +1,7 @@
-// game.js — scène de jeu principale. Détient le « monde » (joueur + pools) et
-// orchestre les systèmes. Gère l'enchaînement des 5 niveaux (le build du joueur
-// persiste), les boss et les modes internes : play / levelup / upgrade / paused /
-// complete. La logique tourne à pas fixe.
+// game.js — scène de jeu (sans-fin RYTHMÉ piloté par le Directeur).
+// Cycles montée -> pic (télégraphié) -> respiration ; +1 palier par cycle
+// (difficulté linéaire). Boss au pic, DANS la nuée (pas de gate, pas de reset).
+// La mort est la seule fin ; le score alimente le classement.
 
 import { Render } from '../engine/render.js';
 import { Input } from '../engine/input.js';
@@ -20,7 +20,7 @@ import { Enemy } from '../entities/enemy.js';
 import { Bullet } from '../entities/bullet.js';
 import { Orb } from '../entities/orb.js';
 import { Boss } from '../entities/boss.js';
-import { createSpawner } from '../systems/spawner.js';
+import { createDirector } from '../systems/director.js';
 import { createWeapons } from '../systems/weapons.js';
 import { rollChoices } from '../systems/upgrades.js';
 import { createUpgradeOverlay } from './upgrade.js';
@@ -30,51 +30,22 @@ import { drawHud } from '../ui/hud.js';
 import { fillBar } from '../ui/widgets.js';
 
 const SEPARATION_WEIGHT = 0.7;
-const QUERY_PAD = 28;
+const QUERY_PAD = 32;
 const ORBITAL_HIT_CD = 0.35;
 const FONT = '"Segoe UI", system-ui, sans-serif';
-
 const xpForLevel = (level) => Math.round(CONFIG.xp.base * Math.pow(CONFIG.xp.growth, level - 1));
-const CAMPAIGN = CONFIG.levels.length;
-
-// Construit la config d'un biome : campagne (0..4) puis extrapolation SANS FIN.
-function buildLevel(biome) {
-  const base = CONFIG.levels[Math.min(biome, CAMPAIGN - 1)];
-  const extra = Math.max(0, biome - (CAMPAIGN - 1)); // biomes au-delà de la campagne
-  const e = CONFIG.endless;
-  const s = base.spawn;
-  return {
-    paletteIndex: biome % PALETTES.length,
-    bossTrigger: base.bossTrigger,
-    killsToFull: Math.round(base.killsToFull * (1 + extra * e.killsGrowth)),
-    spawn: {
-      firstDelay: s.firstDelay,
-      spawnDist: s.spawnDist,
-      types: s.types,
-      interval: Math.max(e.intervalMin, s.interval / Math.pow(e.intervalDecay, extra)),
-      batch: s.batch + Math.floor(extra / e.batchEvery),
-      maxAlive: Math.min(e.maxAliveCap, s.maxAlive + extra * 10),
-      hpScale: s.hpScale * Math.pow(e.hpGrowth, extra),
-      speedScale: Math.min(e.speedCap, s.speedScale * Math.pow(1.05, extra)),
-      damageScale: Math.pow(e.damageBase, biome), // dégâts ennemis ↑ chaque biome (TOUS)
-    },
-  };
-}
 
 export function createGameScene() {
   let app = null;
-  let mode = 'play'; // play | levelup | upgrade | paused | complete
+  let mode = 'play'; // play | levelup | upgrade | paused
   let slowmoT = 0;
-  let completeT = 0;
   let upgrade = null;
   let pauseOptions = null;
   let pendingLevels = 0;
   let boss = null;
-  let bossSpawned = false;
-  let bossActive = false;
 
   const player = new Player();
-  const enemies = new Pool(() => new Enemy(), 64);
+  const enemies = new Pool(() => new Enemy(), 96);
   const bullets = new Pool(() => new Bullet(), CONFIG.bulletMax);
   const enemyBullets = new Pool(() => new Bullet(), CONFIG.enemyBulletMax);
   const orbs = new Pool(() => new Orb(), CONFIG.orbMax);
@@ -82,24 +53,17 @@ export function createGameScene() {
   const floaters = new Floaters(48);
   const colorfield = new ColorField(CONFIG.arena.width, CONFIG.arena.height);
   const grid = new SpatialGrid(CONFIG.arena.width, CONFIG.arena.height, CONFIG.grid.cell);
-  const spawner = createSpawner();
+  const director = createDirector();
 
   const world = {
-    player,
-    enemies,
-    bullets,
-    enemyBullets,
-    orbs,
-    particles,
-    colorfield,
-    grid,
+    player, enemies, bullets, enemyBullets, orbs, particles, floaters, colorfield, grid,
     boss: null,
-    bossActive: false,
     rng: makeRng(0xc0ffee),
     time: 0,
-    levelIndex: 0,
-    biome: 1,
-    campaignCleared: false,
+    tier: 0,
+    phase: 'build',
+    telegraph: false,
+    tierFlash: 0,
     palette: PALETTES[0],
     kills: 0,
     xp: 0,
@@ -114,55 +78,35 @@ export function createGameScene() {
   const weapons = createWeapons(world);
   world.weapons = weapons;
 
-  // Hooks SFX / juice (déclenchés par les systèmes).
+  // Hooks.
   world.onFire = () => Audio.shoot();
   world.onNova = () => {
     Audio.nova();
     Render.addShake(0.22);
   };
   world.onBossShoot = () => Audio.bossShoot();
-  world.onBossSpawn = () => Audio.bossSpawn();
-  world.onBossDeath = () => Audio.bossDeath();
-
-  // --- Niveaux / biomes ---
-  function loadLevel(biome) {
-    const lvl = buildLevel(biome);
-    world.levelConfig = lvl;
-    world.levelIndex = biome;
-    world.biome = biome + 1; // 1-based pour l'affichage
-    world.palette = PALETTES[lvl.paletteIndex];
+  world.onTierUp = (tier) => {
+    world.palette = PALETTES[tier % PALETTES.length];
     Render.setBackdrop(buildBackdrop(world.palette, CONFIG.arena.width, CONFIG.arena.height));
-    Audio.setBiome(lvl.paletteIndex);
-    enemies.clear();
-    bullets.clear();
-    enemyBullets.clear();
-    orbs.clear();
-    particles.clear();
-    floaters.clear();
-    boss = null;
-    world.boss = null;
-    bossSpawned = false;
-    bossActive = false;
-    world.bossActive = false;
-    world.combo = 0;
-    world.comboTimer = 0;
-    spawner.reset(lvl.spawn);
-    colorfield.reset(world.palette, lvl.killsToFull);
-    player.x = player.px = CONFIG.arena.width / 2;
-    player.y = player.py = CONFIG.arena.height / 2;
-    player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.35); // soin entre niveaux
-    player.inv = 0;
-    mode = 'play';
-  }
+    Audio.setBiome(tier % PALETTES.length);
+    colorfield.reset(world.palette, CONFIG.colorfield.killsToFull); // l'arène se repeint au nouveau palier
+    world.tierFlash = 2.2;
+    Audio.levelComplete();
+  };
+  world.onSpawnBoss = (tier) => {
+    if (boss) return; // un seul boss à la fois
+    const a = CONFIG.arena;
+    const ang = world.rng() * TAU;
+    const bx = Math.max(a.margin + 60, Math.min(a.width - a.margin - 60, player.x + Math.cos(ang) * 620));
+    const by = Math.max(a.margin + 60, Math.min(a.height - a.margin - 60, player.y + Math.sin(ang) * 620));
+    boss = new Boss();
+    boss.init(tier, bx, by, Math.floor(tier / CONFIG.director.bossEveryTiers) % CONFIG.boss.variants.length);
+    world.boss = boss;
+    Render.addShake(0.6);
+    Audio.bossSpawn();
+  };
 
-  // SANS FIN : on enchaîne toujours le biome suivant (la mort est la seule fin).
-  function advanceLevel() {
-    world.score += CONFIG.score.biomeClear * world.biome;
-    if (world.levelIndex === CAMPAIGN - 1) world.campaignCleared = true; // campagne bouclée
-    loadLevel(world.levelIndex + 1);
-  }
-
-  // --- Progression / XP ---
+  // --- Progression ---
   function gainXp(v) {
     Audio.pickup();
     world.xp += v;
@@ -174,13 +118,11 @@ export function createGameScene() {
     }
     if (pendingLevels > 0 && mode === 'play') startLevelUp();
   }
-
   function startLevelUp() {
     mode = 'levelup';
     slowmoT = CONFIG.levelUp.slowmoTime;
     Audio.levelup();
   }
-
   function openUpgrade() {
     upgrade = createUpgradeOverlay(world, rollChoices(world, 3), (choice) => {
       choice.apply(world);
@@ -198,70 +140,43 @@ export function createGameScene() {
     world.combo++;
     world.comboTimer = CONFIG.comboWindow;
     if (world.combo > world.bestCombo) world.bestCombo = world.combo;
-    world.score += Math.round(CONFIG.score.perKill * world.combo * (1 + world.levelIndex * CONFIG.score.depthBonus));
+    world.score += Math.round(CONFIG.score.perKill * world.combo * (1 + world.tier * CONFIG.score.depthBonus));
     const n = CONFIG.perf ? CONFIG.particles.killBurstPerf : CONFIG.particles.killBurst;
     particles.burst(e.x, e.y, n, world.palette.colors, world.rng);
-    orbs.obtain().init(e.x, e.y, e.xp * (1 + world.levelIndex * CONFIG.xp.orbXpDepth));
+    orbs.obtain().init(e.x, e.y, e.xp * (1 + world.tier * CONFIG.xp.orbXpDepth));
     colorfield.onKill(e.x, e.y, world.rng);
-    if (bossActive && colorfield.percent > 0.99) colorfield.percent = 0.99; // gated par le boss
 
-    // Diviseur : engendre des petits ennemis à la mort.
-    if (e.splitInto > 0 && e.splitType && enemies.count < world.levelConfig.spawn.maxAlive) {
+    if (e.splitInto > 0 && e.splitType && enemies.count < CONFIG.director.maxAliveCap) {
       const childDef = CONFIG.enemyTypes[e.splitType];
-      const sc = world.levelConfig.spawn;
+      const sc = director.scales();
       for (let i = 0; i < e.splitInto; i++) {
         const a = (i / e.splitInto) * TAU + world.rng();
-        enemies.obtain().init(childDef, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, sc.hpScale * 0.6, sc.speedScale, sc.damageScale || 1);
+        enemies.obtain().init(childDef, e.x + Math.cos(a) * 20, e.y + Math.sin(a) * 20, sc.hp * 0.6, sc.speed, sc.dmg);
       }
     }
   }
-
   function damageEnemy(e, dmg) {
     e.hp -= dmg;
     e.hitFlash = 0.08;
     if (!CONFIG.perf) floaters.spawn(e.x, e.y - e.radius, String(Math.round(dmg)), '#ffffff', 13, 0.6);
     if (e.hp <= 0) killEnemy(e);
   }
-
   function playerHurt() {
     Audio.hit();
     Render.addShake(0.3);
   }
-
-  function spawnBoss() {
-    bossSpawned = true;
-    bossActive = true;
-    world.bossActive = true;
-    enemies.clear(); // l'arène se vide pour le duel (sinon les nuées bloquent les tirs sur le boss)
-    const a = CONFIG.arena;
-    const ang = Math.atan2(player.y - a.height / 2, player.x - a.width / 2) + Math.PI;
-    const bx = Math.max(a.margin + 60, Math.min(a.width - a.margin - 60, player.x + Math.cos(ang) * 520));
-    const by = Math.max(a.margin + 60, Math.min(a.height - a.margin - 60, player.y + Math.sin(ang) * 520));
-    boss = new Boss();
-    boss.init(world.levelIndex, bx, by, world.levelIndex); // variante alternée par biome
-    world.boss = boss;
-    Render.addShake(0.6);
-    if (world.onBossSpawn) world.onBossSpawn();
-  }
-
   function killBoss() {
     const bx = boss.x;
     const by = boss.y;
-    const n = CONFIG.perf ? 30 : 60;
-    particles.burst(bx, by, n, world.palette.colors, world.rng, 1.6);
-    for (let i = 0; i < 8; i++) {
-      orbs.obtain().init(bx + (world.rng() * 2 - 1) * 40, by + (world.rng() * 2 - 1) * 40, Math.ceil(boss.xp / 8));
-    }
-    world.score += CONFIG.score.bossKill * world.biome;
-    colorfield.percent = 1; // débloque la complétion du niveau
+    particles.burst(bx, by, CONFIG.perf ? 30 : 64, world.palette.colors, world.rng, 1.7);
+    for (let i = 0; i < 10; i++) orbs.obtain().init(bx + (world.rng() * 2 - 1) * 50, by + (world.rng() * 2 - 1) * 50, Math.ceil(boss.xp / 10) * (1 + world.tier * CONFIG.xp.orbXpDepth));
+    world.score += CONFIG.score.bossKill * (world.tier + 1);
+    player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.25); // récompense : soin
     boss = null;
     world.boss = null;
-    bossActive = false;
-    world.bossActive = false;
     Render.addShake(0.85);
-    if (world.onBossDeath) world.onBossDeath();
+    Audio.bossDeath();
   }
-
   function damageBoss(dmg) {
     if (!boss) return;
     boss.hp -= dmg;
@@ -274,7 +189,6 @@ export function createGameScene() {
     grid.clear();
     enemies.forEach((e) => grid.insert(e));
   }
-
   function separate() {
     enemies.forEach((e) => {
       let sx = 0;
@@ -296,7 +210,6 @@ export function createGameScene() {
       e.sepy = sy * SEPARATION_WEIGHT;
     });
   }
-
   function bulletCollisions() {
     bullets.forEach((b) => {
       if (!b.alive) return;
@@ -314,7 +227,6 @@ export function createGameScene() {
       });
     });
   }
-
   function bossCollisions() {
     if (!boss) return;
     bullets.forEach((b) => {
@@ -354,17 +266,16 @@ export function createGameScene() {
 
   function stepWorld(dt) {
     world.time += dt;
-    // Visée : applique le réglage et met à jour la position monde de la souris.
     player.aimMode = CONFIG.aimMode;
     Render.screenToWorld(Input.mouse.x, Input.mouse.y, world.mouseWorld);
-    // Combo : décroissance.
     if (world.comboTimer > 0) {
       world.comboTimer -= dt;
       if (world.comboTimer <= 0) world.combo = 0;
     }
+    if (world.tierFlash > 0) world.tierFlash -= dt;
 
     player.update(dt);
-    spawner.update(dt, world);
+    director.update(dt, world);
     weapons.update(dt);
     bullets.forEach((b) => b.update(dt));
     enemyBullets.forEach((b) => b.update(dt));
@@ -381,26 +292,16 @@ export function createGameScene() {
       e.update(dt, player);
       if (e.fireReady) {
         e.fireReady = false;
-        enemyBullets.obtain().init(e.x, e.y, Math.cos(e.fireAngle) * e.bulletSpeed, Math.sin(e.fireAngle) * e.bulletSpeed, {
-          damage: e.bulletDamage,
-          radius: 6,
-          life: 3,
-          pierce: 0,
-          color: CONFIG.danger,
-        });
+        enemyBullets.obtain().init(e.x, e.y, Math.cos(e.fireAngle) * e.bulletSpeed, Math.sin(e.fireAngle) * e.bulletSpeed, { damage: e.bulletDamage, radius: 6, life: 3, pierce: 0, color: CONFIG.danger });
       }
     });
     if (boss) boss.update(dt, world);
-
-    // Déclenchement du boss vers bossTrigger % de couleur.
-    if (!bossSpawned && colorfield.percent >= world.levelConfig.bossTrigger) spawnBoss();
 
     rebuildGrid();
     bulletCollisions();
     weapons.applyContactDamage(damageEnemy);
     bossCollisions();
 
-    // Contact ennemis / boss -> joueur.
     enemies.forEach((e) => {
       const rr = player.radius + e.radius;
       const dx = e.x - player.x;
@@ -413,8 +314,6 @@ export function createGameScene() {
       const dy = boss.y - player.y;
       if (dx * dx + dy * dy < rr * rr && player.takeDamage(boss.contactDamage)) playerHurt();
     }
-
-    // Projectiles ennemis -> joueur.
     enemyBullets.forEach((b) => {
       if (!b.alive) return;
       const rr = player.radius + b.radius;
@@ -434,7 +333,7 @@ export function createGameScene() {
     orbs.sweep();
 
     if (player.dead) {
-      app.gameOver({ score: world.score, kills: world.kills, time: world.time, playerLevel: world.level, biome: world.levelIndex + 1, bestCombo: world.bestCombo });
+      app.gameOver({ score: world.score, kills: world.kills, time: world.time, playerLevel: world.level, biome: world.tier + 1, bestCombo: world.bestCombo });
     }
   }
 
@@ -443,24 +342,19 @@ export function createGameScene() {
     const iy = lerp(player.py, player.y, alpha);
     Render.follow(ix, iy);
     Render.begin();
-
     colorfield.render(Render);
-
     enemies.forEach((e) => e.render(Render, alpha));
     if (boss) boss.render(Render, alpha);
-
     Render.additive();
     bullets.forEach((b) => b.render(Render, alpha));
     enemyBullets.forEach((b) => b.render(Render, alpha));
     const pc = world.palette.colors[1];
     orbs.forEach((o) => o.render(Render, pc, alpha));
     Render.normal();
-
     particles.render(Render);
     weapons.render(Render, ix, iy);
     player.render(Render, alpha);
     floaters.render(Render);
-
     Render.end();
   }
 
@@ -478,56 +372,46 @@ export function createGameScene() {
     ctx.fillText('◆ ' + boss.name, vw / 2, y - 4);
   }
 
-  function drawComplete(R) {
-    const ctx = R.ctx;
-    const vw = R.viewW;
-    const vh = R.viewH;
-    ctx.fillStyle = 'rgba(8,8,14,0.5)';
-    ctx.fillRect(0, 0, vw, vh);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = world.palette.colors[1];
-    ctx.font = `800 30px ${FONT}`;
-    ctx.fillText('COULEUR RESTAURÉE', vw / 2, vh / 2 - 84);
-    ctx.fillStyle = CONFIG.textPrimary;
-    ctx.font = `900 84px ${FONT}`;
-    ctx.fillText('100%', vw / 2, vh / 2 - 6);
-    const campaignEnd = world.levelIndex === CAMPAIGN - 1;
-    ctx.font = `800 32px ${FONT}`;
-    ctx.fillText(campaignEnd ? 'CAMPAGNE TERMINÉE — MODE SANS FIN' : `${world.palette.name.toUpperCase()} — BIOME PURIFIÉ`, vw / 2, vh / 2 + 64);
-    if (completeT > 1.2) {
-      ctx.fillStyle = CONFIG.textSecondary;
-      ctx.font = `600 18px ${FONT}`;
-      ctx.fillText('Entrée / clic pour le biome suivant', vw / 2, vh / 2 + 116);
-    }
-  }
-
   return {
     world,
     getMode: () => mode,
     getChoices: () => (upgrade ? upgrade.choices.map((c) => c.name) : null),
-    getDebug: () => ({ mode, levelIndex: world.levelIndex, percent: world.colorfield.percent, boss: boss ? { hp: boss.hp, max: boss.maxHp } : null }),
 
     enter(_app) {
       app = _app;
-      // Équité compét : tout le monde démarre avec Éclat uniquement.
       player.reset(CONFIG.arena.width / 2, CONFIG.arena.height / 2);
-      const skin = Save.getSkin(); // skin cosmétique choisi
+      const skin = Save.getSkin();
       player.coreColor = skin.core;
       player.glowColor = skin.glow;
       weapons.reset();
       weapons.add('eclat');
+      enemies.clear();
+      bullets.clear();
+      enemyBullets.clear();
+      orbs.clear();
+      particles.clear();
+      floaters.clear();
+      boss = null;
+      world.boss = null;
+      director.reset();
       world.time = 0;
       world.kills = 0;
       world.xp = 0;
       world.level = 1;
       world.xpNext = xpForLevel(1);
+      world.combo = 0;
+      world.comboTimer = 0;
       world.bestCombo = 0;
       world.score = 0;
-      world.campaignCleared = false;
+      world.tier = 0;
+      world.tierFlash = 0;
+      world.palette = PALETTES[0];
+      Render.setBackdrop(buildBackdrop(world.palette, CONFIG.arena.width, CONFIG.arena.height));
+      Audio.setBiome(0);
+      colorfield.reset(world.palette, CONFIG.colorfield.killsToFull);
+      mode = 'play';
       pendingLevels = 0;
       pauseOptions = null;
-      loadLevel(0);
     },
 
     update(dt) {
@@ -544,12 +428,6 @@ export function createGameScene() {
         mode = 'paused';
         return;
       }
-
-      if (mode === 'complete') {
-        completeT += dt;
-        if (completeT > 1.2 && app.input.confirmPressed()) advanceLevel();
-        return;
-      }
       if (mode === 'upgrade') {
         upgrade.update(dt);
         return;
@@ -560,13 +438,7 @@ export function createGameScene() {
         if (slowmoT <= 0) openUpgrade();
         return;
       }
-
       stepWorld(dt);
-      if (colorfield.complete) {
-        mode = 'complete';
-        completeT = 0;
-        Audio.levelComplete();
-      }
     },
 
     render(alpha) {
@@ -586,7 +458,6 @@ export function createGameScene() {
         if (pauseOptions) pauseOptions.render(Render);
         else renderPause(Render);
       }
-      if (mode === 'complete') drawComplete(Render);
     },
   };
 }

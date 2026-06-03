@@ -74,11 +74,41 @@ export const CONFIG = {
   enemyGrayA: '#6b6b78',
   enemyGrayB: '#8a8a99',
 
-  // --- Arène ---
+  // --- Arène (plus grande -> plus d'espace pour esquiver) ---
   arena: {
-    width: 2600,
-    height: 1800,
-    margin: 80, // marge intérieure des murs
+    width: 3400,
+    height: 2300,
+    margin: 90,
+  },
+
+  // --- Dash / esquive active (touche Espace) ---
+  dash: { speed: 1050, duration: 0.15, cooldown: 2.2, iframes: 0.3 },
+
+  // --- Directeur d'intensité (sans-fin rythmé) ---
+  // Un cycle = montée -> pic (télégraphié) -> respiration. Chaque cycle = +1 palier
+  // (difficulté LINÉAIRE, pas exponentielle). Densité plafonnée et lisible.
+  director: {
+    cycle: 36, // durée d'un cycle (s)
+    buildEnd: 22,
+    peakEnd: 28,
+    telegraph: 1.8,
+    baseMaxAlive: 46,
+    maxAlivePerTier: 6,
+    maxAliveCap: 135,
+    baseInterval: 1.1,
+    peakInterval: 0.4,
+    breatherInterval: 1.8,
+    batch: 2,
+    peakBatch: 3,
+    spawnDist: 820,
+    hpPerTier: 0.24, // ennemis plus coriaces -> la nuée se remplit -> pression
+    dmgPerTier: 0.12, // dégâts linéaires (ce qui finit par tuer)
+    speedPerTier: 0.02,
+    speedCap: 1.9,
+    bossEveryTiers: 4,
+    // Plus d'ennemis À DISTANCE en profondeur -> enfer de balles à esquiver
+    // (la survie devient un test d'esquive, pas de DPS).
+    typeUnlock: { 0: ['triangle', 'triangle', 'square'], 2: ['pentagon'], 3: ['dasher'], 5: ['splitter', 'pentagon'], 8: ['pentagon', 'dasher'] },
   },
 
   // --- Collisions ---
@@ -136,7 +166,7 @@ export const CONFIG = {
   boss: {
     radius: 52,
     baseHp: 420,
-    hpPerLevel: 0.6, // hp = baseHp * (1 + index * hpPerLevel)
+    hpPerLevel: 0.45, // hp = baseHp * (1 + tier * hpPerLevel)
     speed: 54,
     contactDamage: 18,
     bulletDamage: 8,
@@ -267,7 +297,7 @@ export const CONFIG = {
   // Courbe modérée : level-ups réguliers SANS exploser (sinon plus aucun choix en
   // fin). L'XP des orbes monte avec la profondeur (orbXpDepth) pour garder la
   // cadence ~constante quel que soit le biome.
-  xp: { base: 14, growth: 1.16, orbXpDepth: 0.22 }, // requis = base*growth^(niv-1) ; orbe ×(1+biome*orbXpDepth)
+  xp: { base: 18, growth: 1.16, orbXpDepth: 0.22 }, // requis = base*growth^(niv-1) ; orbe ×(1+tier*orbXpDepth)
   levelUp: { slowmoTime: 0.35, slowmoScale: 0.18 }, // ralenti à la montée de niveau
   orbMax: 400,
   orb: { radius: 7, magnetSpeed: 560, lifetime: 26 },
