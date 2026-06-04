@@ -8,7 +8,7 @@ import { Input } from '../engine/input.js';
 import { Audio } from '../engine/audio.js';
 import { Save } from '../engine/save.js';
 import { CONFIG, PALETTES } from '../config.js';
-import { lerp, makeRng, hexA, TAU } from '../engine/math.js';
+import { lerp, makeRng, hexA, TAU, clamp } from '../engine/math.js';
 import { Pool } from '../engine/pool.js';
 import { SpatialGrid } from '../engine/grid.js';
 import { Particles } from '../engine/particles.js';
@@ -55,11 +55,54 @@ export function createGameScene() {
   const grid = new SpatialGrid(CONFIG.arena.width, CONFIG.arena.height, CONFIG.grid.cell);
   const director = createDirector();
   const rings = []; // ondes de choc (style) : { x, y, r, maxR, life, maxLife, color, w }
+  const hazards = []; // failles du Statique : { x, y, r, state, t }
+  const pickups = []; // objets de map : { type, x, y, t }
+  let hazardTimer = CONFIG.hazards.firstDelay;
+  let bombTimer = CONFIG.bomb.spawnInterval;
 
   function spawnRing(x, y, maxR, color, width) {
     if (CONFIG.perf) return;
     rings.push({ x, y, r: 0, maxR, life: 0.34, maxLife: 0.34, color, w: width || 3 });
     if (rings.length > 36) rings.shift();
+  }
+
+  function spawnHazard() {
+    const h = CONFIG.hazards;
+    const m = world.time / 60;
+    const ang = world.rng() * TAU;
+    const dist = h.spawnNearMin + world.rng() * (h.spawnNearMax - h.spawnNearMin);
+    const a = CONFIG.arena;
+    const mar = a.margin + 60;
+    hazards.push({
+      x: clamp(player.x + Math.cos(ang) * dist, mar, a.width - mar),
+      y: clamp(player.y + Math.sin(ang) * dist, mar, a.height - mar),
+      r: Math.min(h.rMax, h.rBase + h.rPerMin * m),
+      state: 'warn',
+      t: h.warn,
+    });
+  }
+
+  function spawnPickup(type, x, y) {
+    pickups.push({ type, x, y, t: type === 'heal' ? 13 : 22 });
+  }
+
+  // Bombe de couleur : déflagration qui nettoie la zone + soigne (porte de sortie).
+  function detonateBomb() {
+    const R = CONFIG.bomb.radius;
+    const R2 = R * R;
+    enemies.forEach((e) => {
+      const dx = e.x - player.x;
+      const dy = e.y - player.y;
+      if (dx * dx + dy * dy < R2) damageEnemy(e, 1e9);
+    });
+    if (boss) damageBoss(boss.maxHp * CONFIG.bomb.bossDamageFrac);
+    particles.burst(player.x, player.y, CONFIG.perf ? 30 : 70, world.palette.colors, world.rng, 2.2);
+    spawnRing(player.x, player.y, R, '#ffffff', 9);
+    spawnRing(player.x, player.y, R * 0.66, world.palette.colors[2], 6);
+    player.hp = Math.min(player.maxHp, player.hp + player.maxHp * CONFIG.bomb.heal);
+    player.inv = Math.max(player.inv, 0.6);
+    Render.addShake(0.8);
+    Audio.nova();
   }
 
   const world = {
@@ -153,6 +196,7 @@ export function createGameScene() {
     spawnRing(e.x, e.y, e.radius * 3.6, world.palette.colors[(world.rng() * 3) | 0], 2.5);
     orbs.obtain().init(e.x, e.y, e.xp * (1 + world.tier * CONFIG.xp.orbXpDepth));
     colorfield.onKill(e.x, e.y, world.rng);
+    if (world.rng() < CONFIG.bomb.healDropChance) spawnPickup('heal', e.x, e.y);
 
     if (e.splitInto > 0 && e.splitType && enemies.count < CONFIG.director.maxAliveCap) {
       const childDef = CONFIG.enemyTypes[e.splitType];
@@ -296,6 +340,76 @@ export function createGameScene() {
       if (got) gainXp(got);
     });
 
+    // Bombe de couleur (compétence active, touche E).
+    if ((player.bombs || 0) > 0 && Input.pressed('KeyE', 'KeyF')) {
+      player.bombs--;
+      detonateBomb();
+    }
+
+    // Failles du Statique (zones dangereuses télégraphiées).
+    {
+      const h = CONFIG.hazards;
+      const hm = world.time / 60;
+      const hdmg = h.dmgBase + h.dmgPerMin * hm;
+      for (let i = hazards.length - 1; i >= 0; i--) {
+        const z = hazards[i];
+        z.t -= dt;
+        if (z.state === 'warn') {
+          if (z.t <= 0) {
+            z.state = 'active';
+            z.t = h.active;
+          }
+        } else if (z.state === 'active') {
+          const dx = player.x - z.x;
+          const dy = player.y - z.y;
+          if (dx * dx + dy * dy < z.r * z.r && player.takeDamage(hdmg)) playerHurt();
+          if (z.t <= 0) {
+            z.state = 'fade';
+            z.t = h.fade;
+          }
+        } else if (z.t <= 0) {
+          hazards.splice(i, 1);
+        }
+      }
+      hazardTimer -= dt;
+      if (hazardTimer <= 0) {
+        spawnHazard();
+        hazardTimer = Math.max(h.minInterval, h.baseInterval / (1 + h.intervalTightenPerMin * hm));
+      }
+    }
+
+    // Objets de map (soin / bombe) : apparition + ramassage.
+    bombTimer -= dt;
+    if (bombTimer <= 0) {
+      bombTimer = CONFIG.bomb.spawnInterval;
+      const a = CONFIG.arena;
+      const ang = world.rng() * TAU;
+      const dist = 220 + world.rng() * 420;
+      const mar = a.margin + 40;
+      spawnPickup('bomb', clamp(player.x + Math.cos(ang) * dist, mar, a.width - mar), clamp(player.y + Math.sin(ang) * dist, mar, a.height - mar));
+    }
+    const pcr2 = CONFIG.bomb.collectRadius * CONFIG.bomb.collectRadius;
+    for (let i = pickups.length - 1; i >= 0; i--) {
+      const pk = pickups[i];
+      pk.t -= dt;
+      if (pk.t <= 0) {
+        pickups.splice(i, 1);
+        continue;
+      }
+      const dx = player.x - pk.x;
+      const dy = player.y - pk.y;
+      if (dx * dx + dy * dy < pcr2) {
+        if (pk.type === 'heal') {
+          player.hp = Math.min(player.maxHp, player.hp + CONFIG.bomb.healAmount);
+          Audio.pickup();
+        } else {
+          player.bombs = Math.min(CONFIG.bomb.max, (player.bombs || 0) + 1);
+          Audio.uiSelect();
+        }
+        pickups.splice(i, 1);
+      }
+    }
+
     rebuildGrid();
     separate();
     enemies.forEach((e) => {
@@ -369,6 +483,33 @@ export function createGameScene() {
     Render.follow(ix, iy);
     Render.begin();
     colorfield.render(Render);
+
+    // Failles du Statique (sous les entités).
+    const hctx = Render.ctx;
+    for (const z of hazards) {
+      if (z.state === 'warn') {
+        hctx.strokeStyle = hexA(CONFIG.danger, 0.45 + 0.35 * Math.sin(world.time * 16));
+        hctx.lineWidth = 3;
+        hctx.setLineDash([10, 8]);
+        hctx.beginPath();
+        hctx.arc(z.x, z.y, z.r, 0, TAU);
+        hctx.stroke();
+        hctx.setLineDash([]);
+      } else {
+        const za = z.state === 'fade' ? z.t / CONFIG.hazards.fade : 1;
+        const g = hctx.createRadialGradient(z.x, z.y, z.r * 0.25, z.x, z.y, z.r);
+        g.addColorStop(0, hexA(CONFIG.danger, 0.32 * za));
+        g.addColorStop(1, hexA(CONFIG.danger, 0));
+        hctx.fillStyle = g;
+        hctx.beginPath();
+        hctx.arc(z.x, z.y, z.r, 0, TAU);
+        hctx.fill();
+        hctx.strokeStyle = hexA(CONFIG.danger, 0.6 * za);
+        hctx.lineWidth = 2;
+        hctx.stroke();
+      }
+    }
+
     enemies.forEach((e) => e.render(Render, alpha));
     if (boss) boss.render(Render, alpha);
     Render.additive();
@@ -376,6 +517,11 @@ export function createGameScene() {
     enemyBullets.forEach((b) => b.render(Render, alpha));
     const pc = world.palette.colors[1];
     orbs.forEach((o) => o.render(Render, pc, alpha));
+    for (const pk of pickups) {
+      const col = pk.type === 'heal' ? '#2bff88' : '#ffffff';
+      const glow = pk.type === 'heal' ? '#2bff88' : world.palette.colors[2];
+      Render.drawSprite(Render.glowSprite(col, glow, 9, 2.9), pk.x, pk.y, 0, 1 + 0.18 * Math.sin(world.time * 6));
+    }
     Render.normal();
     particles.render(Render);
     // Ondes de choc (style).
@@ -430,6 +576,10 @@ export function createGameScene() {
       particles.clear();
       floaters.clear();
       rings.length = 0;
+      hazards.length = 0;
+      pickups.length = 0;
+      hazardTimer = CONFIG.hazards.firstDelay;
+      bombTimer = CONFIG.bomb.spawnInterval;
       boss = null;
       world.boss = null;
       director.reset();

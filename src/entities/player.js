@@ -25,6 +25,7 @@ export class Player {
     this.dashTime = 0; // durée de dash restante
     this.dashVX = 0;
     this.dashVY = 0;
+    this.bombs = 0; // bombes de couleur en réserve (touche E)
     this.aimMode = 'auto'; // 'auto' | 'mouse' (option Phase 8)
     this.coreColor = CONFIG.player.coreColor; // surchargé par le skin choisi
     this.glowColor = CONFIG.player.glowColor;
@@ -60,6 +61,7 @@ export class Player {
     this.inv = 0;
     this.dashCd = 0;
     this.dashTime = 0;
+    this.bombs = 0;
     this.aimMode = 'auto';
     this.mods = this._defaultMods();
     this.trailHead = 0;

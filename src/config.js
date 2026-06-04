@@ -67,7 +67,7 @@ export const CONFIG = {
     maxHp: 140, // plus de survie -> parties plus longues
     regen: 1.2, // régénération passive (PV/s) -> les dégâts mineurs ne sont pas permanents
     collectRadius: 145, // rayon de l'aimant fort
-    iframes: 0.7, // invincibilité après un coup (court -> les dégâts montent)
+    iframes: 0.65, // invincibilité après un coup (court -> les dégâts montent)
   },
 
   // Couleur des ennemis « vidés » (avant destruction)
@@ -84,6 +84,36 @@ export const CONFIG = {
   // --- Dash / esquive active (touche Espace) ---
   dash: { speed: 1050, duration: 0.15, cooldown: 2.2, iframes: 0.3 },
 
+  // --- Failles du Statique (zones dangereuses télégraphiées sur la map) ---
+  hazards: {
+    firstDelay: 7,
+    baseInterval: 6.5, // se rapproche avec le temps (intervalTighten)
+    intervalTightenPerMin: 0.14,
+    minInterval: 1.4,
+    warn: 1.2, // télégraphe (s)
+    active: 2.6, // dangereux (s)
+    fade: 0.5,
+    rBase: 110,
+    rPerMin: 20,
+    rMax: 300,
+    dmgBase: 16,
+    dmgPerMin: 7,
+    spawnNearMin: 170,
+    spawnNearMax: 520,
+  },
+
+  // --- Objets de map : Bombe de couleur (compétence active, touche E) + soin ---
+  bomb: {
+    max: 2,
+    spawnInterval: 24, // une bombe apparaît sur la map à cet intervalle
+    radius: 560, // rayon de la déflagration
+    heal: 0.25, // soin à l'usage (% PV max)
+    bossDamageFrac: 0.18, // dégâts au boss
+    collectRadius: 48,
+    healDropChance: 0.025, // chance qu'un ennemi lâche un soin
+    healAmount: 35,
+  },
+
   // --- Directeur d'intensité (sans-fin rythmé) ---
   // Un cycle = montée -> pic (télégraphié) -> respiration. Chaque cycle = +1 palier
   // (difficulté LINÉAIRE, pas exponentielle). Densité plafonnée et lisible.
@@ -99,12 +129,12 @@ export const CONFIG = {
     peakBatch: 3,
     spawnDist: 820,
     // --- Scaling piloté par le TEMPS (m = minutes écoulées) ---
-    hpGrowPerMin: 1.4, // PV ennemis = base × 1.4^m (exponentiel : suit ta puissance)
-    dmgRatePerMin: 0.72, // dégâts = base × (1 + 0.72·m)
-    speedRatePerMin: 0.05, // vitesse = min(cap, 1 + 0.05·m)
-    speedCap: 1.9,
-    densStart: 34, // densité = densStart + densPerMin·m (plafond maxAliveCap) — départ doux
-    densPerMin: 11,
+    hpGrowPerMin: 1.5, // PV ennemis = base × 1.5^m (exponentiel : suit ta puissance)
+    dmgRatePerMin: 1.0, // dégâts = base × (1 + 1.0·m) -> létal nettement plus vite
+    speedRatePerMin: 0.06, // vitesse = min(cap, 1 + 0.06·m)
+    speedCap: 1.95,
+    densStart: 42, // densité = densStart + densPerMin·m (plafond maxAliveCap)
+    densPerMin: 13,
     maxAliveCap: 140,
     intervalTightenPerMin: 0.06, // spawns plus denses avec le temps
     bossEveryTiers: 4,

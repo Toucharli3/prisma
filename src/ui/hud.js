@@ -108,6 +108,14 @@ export function drawHud(R, world) {
   ctx.textBaseline = 'bottom';
   ctx.fillText(dr >= 1 ? 'DASH ⟫ ESPACE' : 'DASH', vw / 2, dby - 3);
 
+  // Bombes de couleur (compétence active, touche E).
+  const nb = p.bombs || 0;
+  ctx.fillStyle = nb > 0 ? world.palette.colors[2] : 'rgba(180,180,200,0.4)';
+  ctx.font = `700 11px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText(`BOMBE ⟫ E  ×${nb}`, vw / 2, dby - 18);
+
   // Mini-carte (haut-gauche).
   drawMinimap(ctx, world);
 
