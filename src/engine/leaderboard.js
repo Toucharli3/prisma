@@ -1,12 +1,16 @@
-// leaderboard.js — client du classement. Tente l'API serverless (/api/scores) ;
-// si indisponible (dev local, pas encore déployé), bascule sur un classement
-// localStorage. Conserve toujours une copie locale en secours.
+// leaderboard.js — client du classement. Priorité : Supabase (en ligne, partagé,
+// marche sur un site statique) -> /api/scores (si déployé sur Vercel) -> localStorage.
+// Conserve toujours une copie locale de secours.
 
-const LOCAL_KEY = 'prisma.local.scores.v2'; // v2 : classement local remis à zéro
-const TIMEOUT = 4000;
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../leaderboard-config.js';
 
-let online = null; // null = inconnu, true/false après un appel
+const LOCAL_KEY = 'prisma.local.scores.v2';
+const TIMEOUT = 5000;
+const SUPA = SUPABASE_URL && SUPABASE_ANON_KEY ? { url: SUPABASE_URL.replace(/\/$/, ''), key: SUPABASE_ANON_KEY } : null;
 
+let online = null;
+
+// --- Local (secours) ---
 function localAll() {
   try {
     return JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
@@ -31,17 +35,53 @@ function localInsert(entry) {
   list.push(entry);
   list.sort((a, b) => b.score - a.score);
   localSave(list);
-  return list.findIndex((e) => e === entry) + 1;
+  return list.indexOf(entry) + 1;
 }
 
-async function withTimeout(promise) {
+function withTimeout(run) {
   const ctrl = new AbortController();
   const id = setTimeout(() => ctrl.abort(), TIMEOUT);
-  try {
-    return await promise(ctrl.signal);
-  } finally {
-    clearTimeout(id);
-  }
+  return run(ctrl.signal).finally(() => clearTimeout(id));
+}
+
+function cleanName(n) {
+  return ((typeof n === 'string' ? n : '') || 'Anonyme').slice(0, 16).trim() || 'Anonyme';
+}
+function cleanScore(s) {
+  return Math.max(0, Math.min(99999999, Math.floor(Number(s) || 0)));
+}
+
+// --- Supabase (REST, clé anon publique) ---
+const supaHeaders = () => ({ apikey: SUPA.key, Authorization: `Bearer ${SUPA.key}`, 'Content-Type': 'application/json' });
+
+async function supaTop(n) {
+  const data = await withTimeout((signal) =>
+    fetch(`${SUPA.url}/rest/v1/scores?select=name,score,biome&order=score.desc&limit=${n}`, { signal, headers: supaHeaders() }).then((r) => (r.ok ? r.json() : Promise.reject()))
+  );
+  return data.map((d) => ({ name: d.name, score: d.score, biome: d.biome || 1 }));
+}
+async function supaRank(score) {
+  const r = await withTimeout((signal) => fetch(`${SUPA.url}/rest/v1/scores?select=id&score=gt.${score}`, { signal, headers: { ...supaHeaders(), Prefer: 'count=exact', Range: '0-0' } }));
+  const cr = r.headers.get('content-range');
+  const total = cr ? parseInt(cr.split('/')[1]) : 0;
+  return (isNaN(total) ? 0 : total) + 1;
+}
+async function supaSubmit(entry) {
+  await withTimeout((signal) =>
+    fetch(`${SUPA.url}/rest/v1/scores`, { signal, method: 'POST', headers: { ...supaHeaders(), Prefer: 'return=minimal' }, body: JSON.stringify({ name: entry.name, score: entry.score, biome: entry.biome }) }).then((r) => (r.ok ? r : Promise.reject()))
+  );
+}
+
+// --- /api (Vercel) ---
+async function apiTop(n) {
+  const data = await withTimeout((signal) => fetch(`/api/scores?limit=${n}`, { signal, cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject())));
+  return data.scores || [];
+}
+async function apiSubmit(entry) {
+  const data = await withTimeout((signal) =>
+    fetch('/api/scores', { signal, method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry) }).then((r) => (r.ok ? r.json() : Promise.reject()))
+  );
+  return data;
 }
 
 export const Leaderboard = {
@@ -51,27 +91,31 @@ export const Leaderboard = {
 
   async top(n = 10) {
     try {
-      const data = await withTimeout((signal) => fetch(`/api/scores?limit=${n}`, { signal, cache: 'no-store' }).then((r) => (r.ok ? r.json() : Promise.reject())));
+      const scores = SUPA ? await supaTop(n) : await apiTop(n);
       online = true;
-      return data.scores || [];
+      return scores;
     } catch {
       online = false;
       return localTop(n);
     }
   },
 
-  // entry: { name, score, biome, combo }
   async submit(entry) {
-    localInsert({ name: entry.name, score: entry.score, biome: entry.biome }); // secours local
+    const e = { name: cleanName(entry.name), score: cleanScore(entry.score), biome: Math.max(1, parseInt(entry.biome) || 1) };
+    localInsert({ name: e.name, score: e.score, biome: e.biome }); // secours local
     try {
-      const data = await withTimeout((signal) =>
-        fetch('/api/scores', { signal, method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(entry) }).then((r) => (r.ok ? r.json() : Promise.reject()))
-      );
+      if (SUPA) {
+        await supaSubmit(e);
+        const [rank, scores] = await Promise.all([supaRank(e.score), supaTop(10)]);
+        online = true;
+        return { rank, scores, online: true };
+      }
+      const data = await apiSubmit(e);
       online = true;
       return { rank: data.rank, scores: data.scores || [], online: true };
     } catch {
       online = false;
-      return { rank: localTop(999).findIndex((e) => e.score <= entry.score) + 1 || localAll().length, scores: localTop(10), online: false };
+      return { rank: localInsert({ name: e.name, score: e.score, biome: e.biome }), scores: localTop(10), online: false };
     }
   },
 };

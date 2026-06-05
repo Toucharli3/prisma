@@ -86,10 +86,10 @@ export const CONFIG = {
 
   // --- Failles du Statique (zones dangereuses télégraphiées sur la map) ---
   hazards: {
-    firstDelay: 7,
-    baseInterval: 6.5, // se rapproche avec le temps (intervalTighten)
-    intervalTightenPerMin: 0.14,
-    minInterval: 1.4,
+    firstDelay: 6,
+    baseInterval: 5.2, // se rapproche avec le temps (intervalTighten)
+    intervalTightenPerMin: 0.16,
+    minInterval: 1.2,
     warn: 1.2, // télégraphe (s)
     active: 2.6, // dangereux (s)
     fade: 0.5,
@@ -130,11 +130,11 @@ export const CONFIG = {
     spawnDist: 820,
     // --- Scaling piloté par le TEMPS (m = minutes écoulées) ---
     hpGrowPerMin: 1.5, // PV ennemis = base × 1.5^m (exponentiel : suit ta puissance)
-    dmgRatePerMin: 1.0, // dégâts = base × (1 + 1.0·m) -> létal nettement plus vite
+    dmgRatePerMin: 1.2, // dégâts = base × (1 + 1.2·m) -> létal encore plus vite
     speedRatePerMin: 0.06, // vitesse = min(cap, 1 + 0.06·m)
     speedCap: 1.95,
-    densStart: 42, // densité = densStart + densPerMin·m (plafond maxAliveCap)
-    densPerMin: 13,
+    densStart: 46, // densité = densStart + densPerMin·m (plafond maxAliveCap)
+    densPerMin: 14,
     maxAliveCap: 140,
     intervalTightenPerMin: 0.06, // spawns plus denses avec le temps
     bossEveryTiers: 4,

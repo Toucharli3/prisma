@@ -150,7 +150,7 @@ export function createGameScene() {
     const bx = Math.max(a.margin + 60, Math.min(a.width - a.margin - 60, player.x + Math.cos(ang) * 620));
     const by = Math.max(a.margin + 60, Math.min(a.height - a.margin - 60, player.y + Math.sin(ang) * 620));
     boss = new Boss();
-    boss.init(tier, bx, by, Math.floor(tier / CONFIG.director.bossEveryTiers) % CONFIG.boss.variants.length);
+    boss.init(tier, bx, by, Math.floor(tier / CONFIG.director.bossEveryTiers) % CONFIG.boss.variants.length, director.scales(world).dmg);
     world.boss = boss;
     Render.addShake(0.6);
     Audio.bossSpawn();

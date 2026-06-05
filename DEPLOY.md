@@ -1,4 +1,34 @@
-# Déployer PRISMA sur Vercel (+ classement en ligne)
+# Classement EN LIGNE sur le site actuel (GitHub Pages) — via Supabase
+
+Le site est statique (GitHub Pages) : pour un classement **partagé** sans serveur,
+on utilise **Supabase** (appelé directement depuis le navigateur ; la clé "anon"
+est publique, la sécurité vient des règles RLS).
+
+1. **Crée un projet** sur [supabase.com](https://supabase.com) (gratuit, login GitHub).
+2. **SQL Editor** → *New query* → colle ceci → *Run* :
+   ```sql
+   create table if not exists scores (
+     id bigint generated always as identity primary key,
+     name text not null,
+     score int not null,
+     biome int default 1,
+     created_at timestamptz default now()
+   );
+   alter table scores enable row level security;
+   create policy "lecture publique" on scores for select using (true);
+   create policy "ajout borné" on scores for insert
+     with check (score >= 0 and score < 100000000 and char_length(name) <= 16);
+   ```
+3. **Settings → API** → copie **Project URL** et la clé **anon public**.
+4. Colle-les dans `src/leaderboard-config.js` (`SUPABASE_URL`, `SUPABASE_ANON_KEY`),
+   commit + push → la branche `gh-pages` se met à jour. Le menu affiche **● en ligne**
+   et tout le monde voit le même classement. ✅
+
+(Tu peux aussi juste me donner ces 2 valeurs et je les mets en place.)
+
+---
+
+# (Alternative) Déployer sur Vercel (+ classement Upstash)
 
 Le jeu est un site **statique** (Vite → `dist/`) + **une fonction serverless**
 (`api/scores.js`) pour le classement partagé. Sans backend, le jeu fonctionne

@@ -47,7 +47,7 @@ export class Boss {
     this.alive = false;
   }
 
-  init(levelIndex, x, y, variantIndex) {
+  init(levelIndex, x, y, variantIndex, dmgScale = 1) {
     const b = CONFIG.boss;
     const v = b.variants[variantIndex % b.variants.length];
     this.alive = true;
@@ -61,7 +61,7 @@ export class Boss {
     this.maxHp = Math.round(b.baseHp * (1 + levelIndex * b.hpPerLevel));
     this.hp = this.maxHp;
     this.speed = b.speed;
-    const dmgScale = 1 + levelIndex * CONFIG.director.dmgPerTier; // dégâts boss ↑ (linéaire, cohérent)
+    // dmgScale fourni par la scène (basé sur le temps) — corrige le bug NaN.
     this.contactDamage = b.contactDamage * dmgScale;
     this.bulletDamage = b.bulletDamage * dmgScale;
     this.bulletSpeed = b.bulletSpeed;

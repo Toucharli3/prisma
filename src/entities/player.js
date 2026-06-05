@@ -74,6 +74,7 @@ export class Player {
 
   // Applique des dégâts si non invincible. Renvoie true si le coup a porté.
   takeDamage(dmg) {
+    if (!(dmg > 0)) return false; // ignore NaN / 0 / négatif -> jamais d'immortalité par bug
     if (this.inv > 0 || this.hp <= 0) return false;
     this.hp -= dmg;
     this.inv = CONFIG.playerStats.iframes;
