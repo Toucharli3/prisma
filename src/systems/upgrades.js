@@ -110,9 +110,22 @@ export function rollChoices(world, n = 3) {
     }
   }
 
-  // Montée de niveau des armes possédées.
+  // Montée de niveau des armes possédées + ÉVOLUTION au niveau max.
   for (const wp of world.weapons.list) {
-    if (wp.level >= CONFIG.maxWeaponLevel) continue;
+    if (wp.level >= CONFIG.maxWeaponLevel) {
+      const evo = CONFIG.evolutions[wp.key];
+      if (evo && !wp.evolved) {
+        cand.push({
+          id: 'evo_' + wp.key,
+          name: '★ ' + evo.name,
+          desc: `ÉVOLUTION — ${evo.desc}`,
+          color: '#ffd700',
+          weight: 3, // rare et précieuse : très probable quand disponible
+          apply: (w) => w.weapons.evolve(wp.key),
+        });
+      }
+      continue;
+    }
     cand.push({
       id: 'lvl_' + wp.key,
       name: `${wp.def.name} Niv.${wp.level + 1}`,

@@ -33,12 +33,27 @@ export class ColorField {
   }
 
   reset(palette, killsToFull) {
-    this.paletteRgb = palette.colors.map(hexToRgb);
-    this.primary = hexToRgb(palette.colors[1]);
+    this.setPalette(palette);
     this.data.fill(0);
     this.percent = 0;
     this.perKill = 1 / Math.max(1, killsToFull);
     this._dirty = true;
+  }
+
+  // Change la palette SANS effacer la peinture (changement de palier).
+  setPalette(palette) {
+    this.paletteRgb = palette.colors.map(hexToRgb);
+    this.primary = hexToRgb(palette.colors[1]);
+  }
+
+  // Vide la jauge (après un Prisma Burst) en gardant l'arène peinte.
+  drainGauge() {
+    this.percent = 0;
+  }
+
+  // Remplissage bonus (élites...).
+  addCharge(kills) {
+    this.percent = Math.min(1, this.percent + this.perKill * kills);
   }
 
   get complete() {

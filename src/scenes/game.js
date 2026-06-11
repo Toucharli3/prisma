@@ -105,6 +105,32 @@ export function createGameScene() {
     Audio.nova();
   }
 
+  // PRISMA BURST (touche R, jauge pleine) : déflagration arc-en-ciel qui nettoie
+  // l'écran, surcharge les armes et rapporte gros. La jauge se vide.
+  function prismaBurst() {
+    const pb = CONFIG.prismaBurst;
+    const R2 = pb.radius * pb.radius;
+    enemies.forEach((e) => {
+      const dx = e.x - player.x;
+      const dy = e.y - player.y;
+      if (dx * dx + dy * dy < R2) damageEnemy(e, 1e9);
+    });
+    if (boss) damageBoss(boss.maxHp * pb.bossDamageFrac);
+    world.overchargeT = pb.overchargeTime;
+    world.score += Math.round(pb.scoreBonus * (1 + world.tier * CONFIG.score.depthBonus));
+    player.hp = Math.min(player.maxHp, player.hp + player.maxHp * pb.heal);
+    player.inv = Math.max(player.inv, 0.8);
+    colorfield.drainGauge();
+    // Feu d'artifice arc-en-ciel : toutes les palettes.
+    const allColors = PALETTES.flatMap((p) => p.colors);
+    particles.burst(player.x, player.y, CONFIG.perf ? 40 : 90, allColors, world.rng, 2.6);
+    spawnRing(player.x, player.y, pb.radius, '#ffffff', 10);
+    spawnRing(player.x, player.y, pb.radius * 0.7, world.palette.colors[1], 7);
+    spawnRing(player.x, player.y, pb.radius * 0.45, world.palette.colors[2], 5);
+    Render.addShake(0.9);
+    Audio.victory();
+  }
+
   const world = {
     player, enemies, bullets, enemyBullets, orbs, particles, floaters, colorfield, grid,
     boss: null,
@@ -123,6 +149,9 @@ export function createGameScene() {
     comboTimer: 0,
     bestCombo: 0,
     score: 0,
+    overchargeT: 0, // surcharge Prisma (après un Burst)
+    bossKills: 0,
+    bombsUsed: 0,
     mouseWorld: { x: 0, y: 0 },
   };
   const weapons = createWeapons(world);
@@ -135,11 +164,15 @@ export function createGameScene() {
     Render.addShake(0.22);
   };
   world.onBossShoot = () => Audio.bossShoot();
+  world.onBossEnrage = () => {
+    Audio.bossSpawn();
+    Render.addShake(0.5);
+  };
   world.onTierUp = (tier) => {
     world.palette = PALETTES[tier % PALETTES.length];
     Render.setBackdrop(buildBackdrop(world.palette, CONFIG.arena.width, CONFIG.arena.height));
     Audio.setBiome(tier % PALETTES.length);
-    colorfield.reset(world.palette, CONFIG.colorfield.killsToFull); // l'arène se repeint au nouveau palier
+    colorfield.setPalette(world.palette); // nouvelle teinte SANS vider la jauge Prisma
     world.tierFlash = 2.2;
     Audio.levelComplete();
   };
@@ -198,6 +231,19 @@ export function createGameScene() {
     colorfield.onKill(e.x, e.y, world.rng);
     if (world.rng() < CONFIG.bomb.healDropChance) spawnPickup('heal', e.x, e.y);
 
+    // Élite : explosion de balles (Détonant), charge Prisma bonus, drop garanti.
+    if (e.elite) {
+      if (e.deathBullets > 0) {
+        for (let i = 0; i < e.deathBullets; i++) {
+          const a = (i / e.deathBullets) * TAU;
+          enemyBullets.obtain().init(e.x, e.y, Math.cos(a) * e.deathBulletSpeed, Math.sin(a) * e.deathBulletSpeed, { damage: e.damage * 0.6, radius: 6, life: 2.2, pierce: 0, color: CONFIG.danger });
+        }
+      }
+      colorfield.addCharge(CONFIG.elites.prismaFill);
+      if (world.rng() < CONFIG.elites.dropChance) spawnPickup(world.rng() < 0.5 ? 'bomb' : 'heal', e.x, e.y);
+      spawnRing(e.x, e.y, e.radius * 5, e.eliteAura, 4);
+    }
+
     if (e.splitInto > 0 && e.splitType && enemies.count < CONFIG.director.maxAliveCap) {
       const childDef = CONFIG.enemyTypes[e.splitType];
       const sc = director.scales(world);
@@ -225,6 +271,7 @@ export function createGameScene() {
     spawnRing(bx, by, 180, '#ffffff', 4);
     for (let i = 0; i < 10; i++) orbs.obtain().init(bx + (world.rng() * 2 - 1) * 50, by + (world.rng() * 2 - 1) * 50, Math.ceil(boss.xp / 10) * (1 + world.tier * CONFIG.xp.orbXpDepth));
     world.score += CONFIG.score.bossKill * (world.tier + 1);
+    world.bossKills++;
     player.hp = Math.min(player.maxHp, player.hp + player.maxHp * 0.25); // récompense : soin
     boss = null;
     world.boss = null;
@@ -343,8 +390,13 @@ export function createGameScene() {
     // Bombe de couleur (compétence active, touche E).
     if ((player.bombs || 0) > 0 && Input.pressed('KeyE', 'KeyF')) {
       player.bombs--;
+      world.bombsUsed++;
       detonateBomb();
     }
+
+    // PRISMA BURST (touche R) quand la jauge est pleine.
+    if (colorfield.percent >= 1 && Input.pressed('KeyR')) prismaBurst();
+    if (world.overchargeT > 0) world.overchargeT -= dt;
 
     // Failles du Statique (zones dangereuses télégraphiées).
     {
@@ -473,7 +525,16 @@ export function createGameScene() {
     orbs.sweep();
 
     if (player.dead) {
-      app.gameOver({ score: world.score, kills: world.kills, time: world.time, playerLevel: world.level, biome: world.tier + 1, bestCombo: world.bestCombo });
+      app.gameOver({
+        score: world.score,
+        kills: world.kills,
+        time: world.time,
+        playerLevel: world.level,
+        biome: world.tier + 1,
+        bestCombo: world.bestCombo,
+        bossKills: world.bossKills,
+        bombsUsed: world.bombsUsed,
+      });
     }
   }
 
@@ -538,6 +599,23 @@ export function createGameScene() {
     Render.normal();
     weapons.render(Render, ix, iy);
     player.render(Render, alpha);
+
+    // Surcharge Prisma : anneaux arc-en-ciel tournants autour du joueur.
+    if (world.overchargeT > 0) {
+      Render.additive();
+      const oc = world.overchargeT / CONFIG.prismaBurst.overchargeTime;
+      const t = world.time * 3;
+      const cols = world.palette.colors;
+      for (let i = 0; i < 3; i++) {
+        ctx.strokeStyle = hexA(cols[i], 0.5 * oc + 0.2);
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(ix, iy, 26 + i * 9 + Math.sin(t + i * 2.1) * 3, 0, TAU);
+        ctx.stroke();
+      }
+      Render.normal();
+    }
+
     floaters.render(Render);
     Render.end();
   }
@@ -567,6 +645,7 @@ export function createGameScene() {
       const skin = Save.getSkin();
       player.coreColor = skin.core;
       player.glowColor = skin.glow;
+      player.shape = skin.shape || 'orb';
       weapons.reset();
       weapons.add('eclat');
       enemies.clear();
@@ -594,6 +673,9 @@ export function createGameScene() {
       world.score = 0;
       world.tier = 0;
       world.tierFlash = 0;
+      world.overchargeT = 0;
+      world.bossKills = 0;
+      world.bombsUsed = 0;
       world.palette = PALETTES[0];
       Render.setBackdrop(buildBackdrop(world.palette, CONFIG.arena.width, CONFIG.arena.height));
       Audio.setBiome(0);

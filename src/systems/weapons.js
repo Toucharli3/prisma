@@ -12,6 +12,9 @@ import { TAU, hexA } from '../engine/math.js';
 const ORBITAL_HIT_CD = 0.35; // intervalle de dégâts orbital par ennemi
 const NODE_QUERY_PAD = 24;
 
+// Multiplicateur de dégâts de la surcharge Prisma (pendant le Burst).
+const ocDmg = (world) => (world.overchargeT > 0 ? CONFIG.prismaBurst.overchargeDmg : 1);
+
 function nearestEnemy(world) {
   // Cible la plus proche (ennemi OU boss) : le boss n'est plus prioritaire, donc
   // il n'est plus instantanément focus-melté -> vrai combat, il faut le viser.
@@ -72,7 +75,7 @@ export function createWeapons(world) {
     const ang = aimAngle();
     if (ang == null) return false; // pas de cible -> ne pas consommer le cooldown
     const count = w.count + p.mods.projAdd;
-    const dmg = w.damage * p.mods.damageMul;
+    const dmg = w.damage * p.mods.damageMul * ocDmg(world);
     for (let i = 0; i < count; i++) {
       const off = count > 1 ? (i - (count - 1) / 2) * w.spread : 0;
       const a = ang + off;
@@ -98,7 +101,7 @@ export function createWeapons(world) {
       maxR: r,
       life: 0.45,
       maxLife: 0.45,
-      damage: w.damage * p.mods.damageMul,
+      damage: w.damage * p.mods.damageMul * ocDmg(world),
       color: w.color,
       pending: true, // dégâts aux ennemis (grille) appliqués une fois
       bossHit: false, // dégâts au boss appliqués une fois
@@ -109,7 +112,7 @@ export function createWeapons(world) {
   // Foudre : frappe la cible la plus proche puis rebondit sur les voisins.
   function doChain(w, damageEnemy) {
     const p = world.player;
-    const dmg = w.damage * p.mods.damageMul;
+    const dmg = w.damage * p.mods.damageMul * ocDmg(world);
     const count = Math.max(1, w.chainCount + p.mods.projAdd);
     const range2 = (w.chainRange || 240) ** 2;
     const hit = [];
@@ -139,26 +142,31 @@ export function createWeapons(world) {
     if (pts.length > 1) chains.push({ pts, color: w.color, life: 0.13 });
   }
 
-  // Faisceau : rayon instantané qui traverse tous les ennemis sur une ligne.
+  // Faisceau : rayon(s) instantané(s) qui traversent tout sur une ligne.
+  // Évolué (Spectre laser) : éventail de beamCount rayons.
   function doBeam(w, damageEnemy) {
     const p = world.player;
-    const ang = aimAngle();
-    if (ang == null) return;
-    const dmg = w.damage * p.mods.damageMul;
+    const baseAng = aimAngle();
+    if (baseAng == null) return;
+    const dmg = w.damage * p.mods.damageMul * ocDmg(world);
     const len = w.beamLength || 520;
     const halfW = (w.beamWidth || 18) / 2;
-    const dx = Math.cos(ang);
-    const dy = Math.sin(ang);
-    world.enemies.forEach((e) => {
-      if (!e.alive) return;
-      const rx = e.x - p.x;
-      const ry = e.y - p.y;
-      const t = rx * dx + ry * dy; // projection sur l'axe
-      if (t < 0 || t > len) return;
-      const perp = Math.abs(rx * -dy + ry * dx);
-      if (perp <= halfW + e.radius) damageEnemy(e, dmg);
-    });
-    beams.push({ x1: p.x, y1: p.y, x2: p.x + dx * len, y2: p.y + dy * len, color: w.color, life: 0.1 });
+    const n = w.beamCount || 1;
+    for (let k = 0; k < n; k++) {
+      const ang = baseAng + (n > 1 ? (k - (n - 1) / 2) * 0.42 : 0);
+      const dx = Math.cos(ang);
+      const dy = Math.sin(ang);
+      world.enemies.forEach((e) => {
+        if (!e.alive) return;
+        const rx = e.x - p.x;
+        const ry = e.y - p.y;
+        const t = rx * dx + ry * dy; // projection sur l'axe
+        if (t < 0 || t > len) return;
+        const perp = Math.abs(rx * -dy + ry * dx);
+        if (perp <= halfW + e.radius) damageEnemy(e, dmg);
+      });
+      beams.push({ x1: p.x, y1: p.y, x2: p.x + dx * len, y2: p.y + dy * len, color: w.color, life: 0.1 });
+    }
   }
 
   return {
@@ -182,6 +190,7 @@ export function createWeapons(world) {
       if (!def) return null;
       const existing = list.find((w) => w.key === key);
       if (existing) {
+        if (existing.level >= CONFIG.maxWeaponLevel) return existing; // plafonné (évolution ensuite)
         existing.level++;
         Object.assign(existing, stats(def, existing.level));
         return existing;
@@ -191,9 +200,32 @@ export function createWeapons(world) {
       return w;
     },
 
+    // Fait évoluer une arme au niveau max (carte dorée). Applique les
+    // multiplicateurs de CONFIG.evolutions sur les stats courantes.
+    evolve(key) {
+      const w = list.find((x) => x.key === key);
+      const evo = CONFIG.evolutions[key];
+      if (!w || !evo || w.evolved) return;
+      w.evolved = true;
+      w.evoName = evo.name;
+      if (evo.cooldown) w.cooldown *= evo.cooldown;
+      if (evo.damage) w.damage *= evo.damage;
+      if (evo.countAdd) w.count = (w.count || 1) + evo.countAdd;
+      if (evo.pierceSet != null) w.pierce = evo.pierceSet;
+      if (evo.bulletRadius) w.bulletRadius *= evo.bulletRadius;
+      if (evo.speed) w.speed *= evo.speed;
+      if (evo.radius) w.radius *= evo.radius;
+      if (evo.rotSpeed) w.rotSpeed *= evo.rotSpeed;
+      if (evo.nodeRadius) w.nodeRadius *= evo.nodeRadius;
+      if (evo.chainAdd) w.chainCount += evo.chainAdd;
+      if (evo.chainRange) w.chainRange *= evo.chainRange;
+      if (evo.beamCount) w.beamCount = evo.beamCount;
+      if (evo.beamWidth) w.beamWidth = (w.beamWidth || 18) * evo.beamWidth;
+    },
+
     update(dt) {
       const p = world.player;
-      const rate = p.mods.rateMul;
+      const rate = p.mods.rateMul * (world.overchargeT > 0 ? CONFIG.prismaBurst.overchargeRate : 1);
       for (let i = 0; i < list.length; i++) {
         const w = list[i];
         if (w.kind === 'orbital') {
@@ -239,7 +271,7 @@ export function createWeapons(world) {
       for (const w of list) {
         if (w.kind !== 'orbital') continue;
         const R = w.radius * p.mods.areaMul;
-        const dmg = w.damage * p.mods.damageMul;
+        const dmg = w.damage * p.mods.damageMul * ocDmg(world);
         for (let i = 0; i < w.count; i++) {
           const a = w.angle + (i * TAU) / w.count;
           const nx = p.x + Math.cos(a) * R;
@@ -288,7 +320,7 @@ export function createWeapons(world) {
       for (const w of list) {
         if (w.kind !== 'orbital') continue;
         const R = w.radius * p.mods.areaMul;
-        const dmg = w.damage * p.mods.damageMul;
+        const dmg = w.damage * p.mods.damageMul * ocDmg(world);
         for (let i = 0; i < w.count; i++) {
           const a = w.angle + (i * TAU) / w.count;
           cb(p.x + Math.cos(a) * R, p.y + Math.sin(a) * R, w.nodeRadius, dmg);

@@ -29,6 +29,8 @@ export class Player {
     this.aimMode = 'auto'; // 'auto' | 'mouse' (option Phase 8)
     this.coreColor = CONFIG.player.coreColor; // surchargé par le skin choisi
     this.glowColor = CONFIG.player.glowColor;
+    this.shape = 'orb';
+    this.spinAngle = 0; // rotation lente des formes (prisme, étoile...)
 
     // Modificateurs cumulés par les upgrades (Phase 4). Multiplicateurs neutres
     // par défaut ; remis à zéro à chaque nouvelle partie.
@@ -85,6 +87,7 @@ export class Player {
     this.px = this.x;
     this.py = this.y;
     if (this.inv > 0) this.inv -= dt;
+    this.spinAngle += dt * 1.4;
     // Régénération passive (parties plus longues).
     if (this.hp > 0 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + CONFIG.playerStats.regen * dt);
 
@@ -154,8 +157,9 @@ export class Player {
     ctx.stroke();
     R.normal();
 
-    // Corps : halo + cœur (couleur du skin). Clignote pendant les i-frames.
+    // Corps : forme du skin (halo + forme + cœur). Clignote pendant les i-frames.
     const blink = this.inv > 0 && (this.inv * 16) % 2 < 1 ? 0.35 : 1;
-    R.drawSprite(R.glowSprite(this.coreColor, this.glowColor, this.radius), ix, iy, 0, 1, blink);
+    const spin = this.shape === 'orb' || this.shape === 'ghost' ? 0 : this.spinAngle;
+    R.drawSprite(R.playerSprite(this.shape, this.coreColor, this.glowColor, this.radius), ix, iy, spin, 1, blink);
   }
 }

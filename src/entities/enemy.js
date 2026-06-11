@@ -49,6 +49,11 @@ export class Enemy {
     // Diviseur (splitter) :
     this.splitInto = 0;
     this.splitType = null;
+    // Élite :
+    this.elite = null; // clé d'affixe ('swift' | 'colossus' | 'volatile') ou null
+    this.eliteAura = '#ffffff';
+    this.deathBullets = 0;
+    this.deathBulletSpeed = 0;
   }
 
   init(def, x, y, hpScale = 1, speedScale = 1, damageScale = 1) {
@@ -76,6 +81,8 @@ export class Enemy {
     this.dashing = 0;
     this.splitInto = def.splitInto || 0;
     this.splitType = def.splitType || null;
+    this.elite = null;
+    this.deathBullets = 0;
     this.x = this.px = x;
     this.y = this.py = y;
     this.sepx = 0;
@@ -85,6 +92,22 @@ export class Enemy {
     this.orbitalCd = 0;
     this.angle = Math.random() * TAU;
     this.rotSpeed = (Math.random() * 2 - 1) * 0.7;
+  }
+
+  // Promeut l'ennemi en ÉLITE (affixe de config.elites.affixes).
+  makeElite(key, affix) {
+    this.elite = key;
+    this.eliteAura = affix.aura;
+    if (affix.radius) this.radius *= affix.radius;
+    if (affix.hp) {
+      this.maxHp *= affix.hp;
+      this.hp = this.maxHp;
+    }
+    if (affix.speed) this.speed *= affix.speed;
+    if (affix.damage) this.damage *= affix.damage;
+    if (affix.xp) this.xp *= affix.xp;
+    this.deathBullets = affix.deathBullets || 0;
+    this.deathBulletSpeed = affix.deathBulletSpeed || 0;
   }
 
   update(dt, target) {
@@ -152,6 +175,13 @@ export class Enemy {
   render(R, alpha) {
     const ix = lerp(this.px, this.x, alpha);
     const iy = lerp(this.py, this.y, alpha);
+    // Aura d'élite (sous la forme), pulsante.
+    if (this.elite) {
+      R.additive();
+      const pulse = 1 + 0.15 * Math.sin(performance.now() * 0.008);
+      R.drawSprite(R.softDot(this.eliteAura, Math.round(this.radius * 1.9)), ix, iy, 0, pulse, 0.65);
+      R.normal();
+    }
     const spr = R.polySprite(
       this.sides,
       this.radius,

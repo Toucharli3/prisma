@@ -6,15 +6,29 @@ import { Audio } from './audio.js';
 
 const KEY = 'prisma.save.v2'; // v2 : remise à zéro (anciens scores de test effacés)
 
-// Paliers de déblocage : armes de départ supplémentaires.
-const MILESTONES = [
-  { id: 'start_onde', weapon: 'onde', label: 'Onde — arme de départ', test: (d) => d.furthestBiome >= 3 },
-  { id: 'start_orbital', weapon: 'orbital', label: 'Orbital — arme de départ', test: (d) => d.wins >= 1 },
-];
+// Vérifie la condition de déblocage d'un skin pour la partie qui vient de finir.
+function skinUnlocked(unlock, stats) {
+  switch (unlock.type) {
+    case 'tier':
+      return (stats.biome || 1) >= unlock.value;
+    case 'combo':
+      return (stats.bestCombo || 0) >= unlock.value;
+    case 'surviveMin':
+      return (stats.time || 0) >= unlock.value * 60;
+    case 'bossKills':
+      return (stats.bossKills || 0) >= unlock.value;
+    case 'bombs':
+      return (stats.bombsUsed || 0) >= unlock.value;
+    case 'score':
+      return (stats.score || 0) >= unlock.value;
+    default:
+      return false;
+  }
+}
 
 const DEFAULTS = () => ({
   name: '',
-  skin: 'prisme',
+  skin: 'etincelle',
   highScore: 0,
   bestCombo: 0,
   runs: 0,
@@ -26,7 +40,6 @@ const DEFAULTS = () => ({
 
 export const Save = {
   data: DEFAULTS(),
-  MILESTONES,
 
   load() {
     this.data = DEFAULTS();
@@ -83,20 +96,17 @@ export const Save = {
     if (stats.bestCombo > d.bestCombo) d.bestCombo = stats.bestCombo;
     if (stats.biome > d.furthestBiome) d.furthestBiome = stats.biome;
 
+    // Accomplissements -> skins débloqués.
     const newlyUnlocked = [];
-    for (const m of MILESTONES) {
-      if (!d.unlocked.includes(m.id) && m.test(d)) {
-        d.unlocked.push(m.id);
-        newlyUnlocked.push(m.label);
+    for (const s of CONFIG.skins) {
+      if (s.unlock.type === 'start' || d.unlocked.includes(s.id)) continue;
+      if (skinUnlocked(s.unlock, stats)) {
+        d.unlocked.push(s.id);
+        newlyUnlocked.push(`Skin « ${s.name} » (${s.unlock.label})`);
       }
     }
     this.persist();
     return { newHighScore: newHigh, newlyUnlocked };
-  },
-
-  // Armes de départ débloquées (en plus de l'Éclat).
-  startingWeapons() {
-    return MILESTONES.filter((m) => this.data.unlocked.includes(m.id)).map((m) => m.weapon);
   },
 
   setName(n) {
@@ -106,7 +116,7 @@ export const Save = {
 
   // --- Skins ---
   unlockedSkins() {
-    return CONFIG.skins.filter((k) => this.data.furthestBiome >= k.biome);
+    return CONFIG.skins.filter((k) => k.unlock.type === 'start' || this.data.unlocked.includes(k.id));
   },
   getSkin() {
     return CONFIG.skins.find((k) => k.id === this.data.skin) || CONFIG.skins[0];

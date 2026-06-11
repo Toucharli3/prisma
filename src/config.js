@@ -50,14 +50,17 @@ export const CONFIG = {
     glowColor: '#00e5ff',
   },
 
-  // Skins du Prisme (cosmétique). Débloqués en atteignant le biome `biome`.
+  // Skins du Prisme : de vraies FORMES, débloquées par des ACCOMPLISSEMENTS.
+  // unlock.type : start | tier (palier atteint) | bossKills (en une partie) |
+  // combo | surviveMin | bombs (utilisées en une partie) | score
   skins: [
-    { id: 'prisme', name: 'Prisme', core: '#ffffff', glow: '#00e5ff', biome: 0 },
-    { id: 'braise', name: 'Braise', core: '#ffffff', glow: '#ff8a00', biome: 2 },
-    { id: 'maree', name: 'Marée', core: '#ffffff', glow: '#18ffd5', biome: 3 },
-    { id: 'verdoyant', name: 'Verdoyant', core: '#ffffff', glow: '#2bff88', biome: 4 },
-    { id: 'nebuleuse', name: 'Nébuleuse', core: '#ffffff', glow: '#b14dff', biome: 5 },
-    { id: 'aurum', name: 'Aurum', core: '#fff3b0', glow: '#ffd000', biome: 6 },
+    { id: 'etincelle', name: 'Étincelle', shape: 'orb', core: '#ffffff', glow: '#00e5ff', unlock: { type: 'start', label: 'De base' } },
+    { id: 'prisme', name: 'Prisme', shape: 'prism', core: '#ffffff', glow: '#b14dff', unlock: { type: 'tier', value: 5, label: 'Atteindre le palier 5' } },
+    { id: 'etoile', name: 'Étoile', shape: 'star', core: '#fff3b0', glow: '#ffd000', unlock: { type: 'combo', value: 40, label: 'Combo ×40' } },
+    { id: 'anneau', name: 'Anneau', shape: 'ring', core: '#ffffff', glow: '#18ffd5', unlock: { type: 'surviveMin', value: 8, label: 'Survivre 8 minutes' } },
+    { id: 'braise', name: 'Braise', shape: 'orb', core: '#fff3b0', glow: '#ff4d00', unlock: { type: 'bossKills', value: 2, label: 'Tuer 2 boss en une partie' } },
+    { id: 'hexa', name: 'Hexa', shape: 'hex', core: '#ffffff', glow: '#2bff88', unlock: { type: 'bombs', value: 4, label: 'Utiliser 4 bombes en une partie' } },
+    { id: 'spectre', name: 'Spectre', shape: 'ghost', core: '#e8e8ff', glow: '#ff4dd2', unlock: { type: 'score', value: 2000000, label: 'Score 2 000 000' } },
   ],
 
   // Stats du joueur (équilibrage de base)
@@ -317,14 +320,49 @@ export const CONFIG = {
     },
   },
   maxWeapons: 6, // emplacements d'armes
-  maxWeaponLevel: 8,
+  maxWeaponLevel: 6, // au niveau max, l'arme peut ÉVOLUER (carte dorée)
+  // Évolutions : multiplicateurs appliqués sur les stats du niveau max.
+  evolutions: {
+    eclat: { name: 'Mitraille prismatique', desc: 'Cadence ×2 · +2 projectiles', cooldown: 0.5, countAdd: 2, damage: 1.3 },
+    onde: { name: 'Raz-de-marée', desc: 'Transperce tout · onde géante', pierceSet: 999, bulletRadius: 1.9, damage: 1.6, speed: 1.2 },
+    orbital: { name: 'Constellation', desc: '+3 orbes · rotation rapide', countAdd: 3, rotSpeed: 1.6, nodeRadius: 1.4, damage: 1.5 },
+    nova: { name: 'Supernova', desc: 'Zone ×1.7 · dégâts ×1.8', radius: 1.7, damage: 1.8, cooldown: 0.8 },
+    foudre: { name: 'Tempête', desc: '+3 rebonds · portée ×1.4', chainAdd: 3, chainRange: 1.4, damage: 1.5, cooldown: 0.75 },
+    faisceau: { name: 'Spectre laser', desc: '3 rayons en éventail', beamCount: 3, damage: 1.4, beamWidth: 1.4 },
+  },
   bulletMax: 420,
 
   // --- Particules (plafonnées ; réduites en mode perf) ---
   particles: { max: 1500, killBurst: 16, killBurstPerf: 8 },
 
-  // --- Restauration de couleur (mécanisme signature) ---
-  colorfield: { cols: 48, rows: 32, splashRadius: 2.6, ambientMax: 0.2, killsToFull: 55 },
+  // --- Couleur = jauge PRISMA (ulti). Les kills la remplissent ; pleine, le
+  // joueur déclenche le PRISMA BURST (touche R) : déflagration arc-en-ciel qui
+  // nettoie l'écran + surcharge les armes. Les éclaboussures peignent l'arène. ---
+  colorfield: { cols: 48, rows: 32, splashRadius: 2.6, ambientMax: 0.2, killsToFull: 42 },
+  prismaBurst: {
+    radius: 720, // rayon de la déflagration
+    bossDamageFrac: 0.22, // dégâts au boss (% PV max)
+    overchargeTime: 8, // surcharge des armes (s)
+    overchargeRate: 1.6, // × cadence pendant la surcharge
+    overchargeDmg: 1.5, // × dégâts pendant la surcharge
+    scoreBonus: 1200, // × (1 + tier × depthBonus)
+    heal: 0.15, // soin (% PV max)
+  },
+
+  // --- Élites (affixes) : plus fréquentes avec le temps ---
+  elites: {
+    baseChance: 0.04,
+    chancePerMin: 0.013,
+    maxChance: 0.17,
+    // affixe -> modificateurs (appliqués sur la base déjà scalée)
+    affixes: {
+      swift: { name: 'Véloce', speed: 1.55, hp: 1.6, xp: 3, aura: '#ffd000' },
+      colossus: { name: 'Colosse', radius: 1.55, hp: 3.6, damage: 1.35, speed: 0.78, xp: 4, aura: '#ff4d00' },
+      volatile: { name: 'Détonant', hp: 1.9, xp: 3, aura: '#ff2d55', deathBullets: 6, deathBulletSpeed: 210 },
+    },
+    prismaFill: 3, // kills équivalents ajoutés à la jauge PRISMA
+    dropChance: 0.5, // 50% : bombe ou soin garanti
+  },
 
   // --- XP / niveaux ---
   // Courbe modérée : level-ups réguliers SANS exploser (sinon plus aucun choix en

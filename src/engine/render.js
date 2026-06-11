@@ -329,6 +329,115 @@ export const Render = {
     });
   },
 
+  // Sprite du joueur selon la forme du skin (halo + forme + cœur). Mis en cache.
+  playerSprite(shape, core, glow, radius) {
+    const glowR = radius * 2.6;
+    const pad = Math.ceil(glowR) + 3;
+    const size = pad * 2;
+    const g = hexToRgb(glow);
+    return this.sprite(`pskin|${shape}|${core}|${glow}|${radius}`, size, (c, sz) => {
+      const cx = sz / 2;
+      // Halo commun.
+      const grad = c.createRadialGradient(cx, cx, radius * 0.2, cx, cx, glowR);
+      grad.addColorStop(0, rgbCss(g.r, g.g, g.b, 0.85));
+      grad.addColorStop(0.45, rgbCss(g.r, g.g, g.b, 0.28));
+      grad.addColorStop(1, rgbCss(g.r, g.g, g.b, 0));
+      c.fillStyle = grad;
+      c.beginPath();
+      c.arc(cx, cx, glowR, 0, TAU);
+      c.fill();
+
+      const poly = (sides, r, rot = -HALF_PI) => {
+        c.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const a = rot + (i * TAU) / sides;
+          const x = cx + Math.cos(a) * r;
+          const y = cx + Math.sin(a) * r;
+          if (i) c.lineTo(x, y);
+          else c.moveTo(x, y);
+        }
+        c.closePath();
+      };
+
+      c.fillStyle = core;
+      c.strokeStyle = glow;
+      c.lineWidth = 2;
+      switch (shape) {
+        case 'prism': {
+          poly(3, radius * 1.25);
+          c.fill();
+          c.stroke();
+          // facette intérieure
+          c.globalAlpha = 0.55;
+          c.fillStyle = glow;
+          poly(3, radius * 0.6);
+          c.fill();
+          c.globalAlpha = 1;
+          break;
+        }
+        case 'star': {
+          c.beginPath();
+          for (let i = 0; i < 10; i++) {
+            const a = -HALF_PI + (i * TAU) / 10;
+            const r = i % 2 === 0 ? radius * 1.35 : radius * 0.55;
+            const x = cx + Math.cos(a) * r;
+            const y = cx + Math.sin(a) * r;
+            if (i) c.lineTo(x, y);
+            else c.moveTo(x, y);
+          }
+          c.closePath();
+          c.fill();
+          c.stroke();
+          break;
+        }
+        case 'ring': {
+          c.lineWidth = radius * 0.55;
+          c.strokeStyle = core;
+          c.beginPath();
+          c.arc(cx, cx, radius * 0.85, 0, TAU);
+          c.stroke();
+          c.lineWidth = 2;
+          c.strokeStyle = glow;
+          c.beginPath();
+          c.arc(cx, cx, radius * 1.18, 0, TAU);
+          c.stroke();
+          break;
+        }
+        case 'hex': {
+          poly(6, radius * 1.15);
+          c.fill();
+          c.stroke();
+          c.globalAlpha = 0.5;
+          c.fillStyle = glow;
+          poly(6, radius * 0.55, -HALF_PI + TAU / 12);
+          c.fill();
+          c.globalAlpha = 1;
+          break;
+        }
+        case 'ghost': {
+          c.globalAlpha = 0.7;
+          c.beginPath();
+          c.arc(cx, cx, radius, 0, TAU);
+          c.fill();
+          c.globalAlpha = 1;
+          c.strokeStyle = core;
+          c.setLineDash([5, 4]);
+          c.beginPath();
+          c.arc(cx, cx, radius * 1.3, 0, TAU);
+          c.stroke();
+          c.setLineDash([]);
+          break;
+        }
+        default: {
+          // orb
+          c.beginPath();
+          c.arc(cx, cx, radius, 0, TAU);
+          c.fill();
+        }
+      }
+    });
+  },
+
   additive() {
     this.ctx.globalCompositeOperation = 'lighter';
   },

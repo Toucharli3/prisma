@@ -74,6 +74,7 @@ export class Boss {
     this.orbitalCd = 0;
     this.lastBulletId = -1;
     this.life = b.retreat; // se retire si non tué dans ce délai
+    this.enraged = false; // phase 2 à 50% PV
     this.xp = b.xp;
   }
 
@@ -105,6 +106,16 @@ export class Boss {
     this.life -= dt;
     if (this.hitFlash > 0) this.hitFlash -= dt;
     if (this.orbitalCd > 0) this.orbitalCd -= dt;
+
+    // PHASE 2 (enrage) à 50% PV : plus rapide, patterns plus denses, +20s de présence.
+    if (!this.enraged && this.hp <= this.maxHp * 0.5) {
+      this.enraged = true;
+      this.patternCd *= 0.62;
+      this.speed *= 1.35;
+      this.rotSpeed *= 1.7;
+      this.life += 20;
+      if (world.onBossEnrage) world.onBossEnrage(this);
+    }
     this.patternTimer -= dt;
     if (this.patternTimer <= 0) {
       PATTERNS[this.patternList[this.patternStep % this.patternList.length]](this, world);
@@ -117,6 +128,12 @@ export class Boss {
   render(R, alpha) {
     const ix = lerp(this.px, this.x, alpha);
     const iy = lerp(this.py, this.y, alpha);
+    if (this.enraged) {
+      R.additive();
+      const pulse = 1 + 0.2 * Math.sin(performance.now() * 0.012);
+      R.drawSprite(R.softDot(this.color, Math.round(this.radius * 2.1)), ix, iy, 0, pulse, 0.7);
+      R.normal();
+    }
     R.drawSprite(R.polySprite(this.sides, this.radius, '#2a2030', this.color, this.color, this.color, 1.5), ix, iy, this.angle);
     if (this.hitFlash > 0) {
       R.drawSprite(R.polySprite(this.sides, this.radius, '#ffffff', '#ffffff', '#ffffff', '#ffffff', 1.2), ix, iy, this.angle, 1, Math.min(1, this.hitFlash / 0.08));

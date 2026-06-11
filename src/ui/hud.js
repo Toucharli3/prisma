@@ -34,17 +34,26 @@ export function drawHud(R, world) {
   ctx.textBaseline = 'top';
   fillBar(ctx, 150, 12, vw - 300, 6, world.xp / world.xpNext, CONFIG.player.glowColor);
 
-  // Jauge de couleur (objectif) — haut-centre, proéminente.
+  // Jauge PRISMA (ulti) — haut-centre. Pleine = Burst déclenchable (R).
   const gw = Math.min(440, vw * 0.5);
   const gx = (vw - gw) / 2;
   const gy = 28;
   const gh = 18;
+  const charged = world.colorfield.percent >= 1;
   drawColorGauge(ctx, gx, gy, gw, gh, world.colorfield.percent, world.palette);
+  if (charged) {
+    // Liseré blanc pulsant quand prête.
+    ctx.strokeStyle = hexA('#ffffff', 0.5 + 0.5 * Math.sin(world.time * 9));
+    ctx.lineWidth = 2;
+    roundRect(ctx, gx - 2, gy - 2, gw + 4, gh + 4, (gh + 4) / 2);
+    ctx.stroke();
+  }
   ctx.fillStyle = CONFIG.textPrimary;
   ctx.font = `800 13px ${FONT}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`COULEUR ${Math.floor(world.colorfield.percent * 100)}%`, vw / 2, gy + gh / 2);
+  if (world.overchargeT > 0) ctx.fillText(`⚡ SURCHARGE ${world.overchargeT.toFixed(1)}s`, vw / 2, gy + gh / 2);
+  else ctx.fillText(charged ? '✦ PRISMA PRÊT — R ✦' : `PRISMA ${Math.floor(world.colorfield.percent * 100)}%`, vw / 2, gy + gh / 2);
 
   ctx.fillStyle = CONFIG.textSecondary;
   ctx.font = `700 12px ${FONT}`;

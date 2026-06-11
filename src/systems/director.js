@@ -97,11 +97,19 @@ export function createDirector() {
 
       const types = this.availableTypes();
       const sc = this.scales(world);
+      const el = CONFIG.elites;
+      const eliteChance = Math.min(el.maxChance, el.baseChance + el.chancePerMin * m);
+      const affixKeys = Object.keys(el.affixes);
       for (let i = 0; i < batch; i++) {
         if (world.enemies.count >= maxAlive) break;
         const def = CONFIG.enemyTypes[types[(world.rng() * types.length) | 0]];
         const p = ringPos(world.player, d.spawnDist, world.rng);
-        world.enemies.obtain().init(def, p.x, p.y, sc.hp, sc.speed, sc.dmg);
+        const e = world.enemies.obtain();
+        e.init(def, p.x, p.y, sc.hp, sc.speed, sc.dmg);
+        if (world.rng() < eliteChance) {
+          const key = affixKeys[(world.rng() * affixKeys.length) | 0];
+          e.makeElite(key, el.affixes[key]);
+        }
       }
     },
   };
