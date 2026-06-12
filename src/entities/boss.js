@@ -40,6 +40,20 @@ const PATTERNS = [
       fire(b, w, a, b.bulletSpeed * 0.9);
     }
   },
+  // 5 — RUCHE : pond 3 ennemis (scalés au temps) autour d'elle
+  (b, w) => {
+    const d = CONFIG.director;
+    const m = w.time / 60;
+    const hpS = Math.pow(d.hpGrowPerMin, m);
+    const dmgS = 1 + d.dmgRatePerMin * Math.max(0, m - 0.5);
+    const spS = Math.min(d.speedCap, 1 + d.speedRatePerMin * m);
+    const types = ['triangle', 'dasher', 'triangle'];
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * TAU + w.rng() * 2;
+      const def = CONFIG.enemyTypes[types[i]];
+      w.enemies.obtain().init(def, b.x + Math.cos(a) * (b.radius + 30), b.y + Math.sin(a) * (b.radius + 30), hpS * 0.8, spS, dmgS);
+    }
+  },
 ];
 
 export class Boss {
@@ -58,6 +72,7 @@ export class Boss {
     this.color = v.color;
     this.name = v.name;
     this.patternList = v.patterns;
+    this.mirror = v.mirror || 0; // proba de renvoyer un tir reçu (Le Miroir)
     this.maxHp = Math.round(b.baseHp * (1 + levelIndex * b.hpPerLevel));
     this.hp = this.maxHp;
     this.speed = b.speed;

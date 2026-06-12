@@ -51,6 +51,9 @@ export class Player {
       areaMul: 1,
       moveMul: 1,
       collectMul: 1,
+      dmgTakenMul: 1, // Armure (multiplicatif, < 1)
+      regenBonus: 0, // Photosynthèse (+PV/s)
+      dashCdMul: 1, // Réflexe (cooldown de dash)
     };
   }
 
@@ -78,7 +81,7 @@ export class Player {
   takeDamage(dmg) {
     if (!(dmg > 0)) return false; // ignore NaN / 0 / négatif -> jamais d'immortalité par bug
     if (this.inv > 0 || this.hp <= 0) return false;
-    this.hp -= dmg;
+    this.hp -= dmg * this.mods.dmgTakenMul; // Armure
     this.inv = CONFIG.playerStats.iframes;
     return true;
   }
@@ -88,8 +91,8 @@ export class Player {
     this.py = this.y;
     if (this.inv > 0) this.inv -= dt;
     this.spinAngle += dt * 1.4;
-    // Régénération passive (parties plus longues).
-    if (this.hp > 0 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + CONFIG.playerStats.regen * dt);
+    // Régénération passive (+ Photosynthèse).
+    if (this.hp > 0 && this.hp < this.maxHp) this.hp = Math.min(this.maxHp, this.hp + (CONFIG.playerStats.regen + this.mods.regenBonus) * dt);
 
     if (this.dashCd > 0) this.dashCd -= dt;
     Input.moveVector(this._mv);
@@ -107,7 +110,7 @@ export class Player {
       this.dashVX = (dx / l) * CONFIG.dash.speed;
       this.dashVY = (dy / l) * CONFIG.dash.speed;
       this.dashTime = CONFIG.dash.duration;
-      this.dashCd = CONFIG.dash.cooldown;
+      this.dashCd = CONFIG.dash.cooldown * this.mods.dashCdMul; // Réflexe
       this.inv = Math.max(this.inv, CONFIG.dash.iframes);
       Audio.dash();
     }

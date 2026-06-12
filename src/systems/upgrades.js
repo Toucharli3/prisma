@@ -39,6 +39,43 @@ const STAT = [
     avail: (w) => w.player.hp < w.player.maxHp,
     apply: (w) => (w.player.hp = Math.min(w.player.maxHp, w.player.hp + 45)),
   },
+  { id: 'armor', name: 'Armure', desc: '−12% dégâts subis', color: '#8af0ff', apply: (w) => (w.player.mods.dmgTakenMul *= 0.88) },
+  { id: 'regen', name: 'Photosynthèse', desc: '+1.5 PV/s de régénération', color: '#00d97e', apply: (w) => (w.player.mods.regenBonus += 1.5) },
+  {
+    id: 'reflex',
+    name: 'Réflexe',
+    desc: '−25% cooldown de dash',
+    color: '#18ffd5',
+    avail: (w) => w.player.mods.dashCdMul > 0.35,
+    apply: (w) => (w.player.mods.dashCdMul *= 0.75),
+  },
+  // --- Cartes MAUDITES (rares, risque/récompense) ---
+  {
+    id: 'curse_glass',
+    name: '⚠ Pacte de verre',
+    desc: '+40% dégâts MAIS −25 PV max',
+    color: '#b14dff',
+    weight: 0.35,
+    avail: (w) => w.player.maxHp > 70,
+    apply: (w) => {
+      w.player.mods.damageMul *= 1.4;
+      w.player.maxHp = Math.max(40, w.player.maxHp - 25);
+      w.player.hp = Math.min(w.player.hp, w.player.maxHp);
+    },
+  },
+  {
+    id: 'curse_greed',
+    name: '⚠ Avidité',
+    desc: '+1 projectile MAIS −15 PV max',
+    color: '#b14dff',
+    weight: 0.35,
+    avail: (w) => w.player.maxHp > 60 && w.player.mods.projAdd < 5,
+    apply: (w) => {
+      w.player.mods.projAdd += 1;
+      w.player.maxHp = Math.max(40, w.player.maxHp - 15);
+      w.player.hp = Math.min(w.player.hp, w.player.maxHp);
+    },
+  },
 ];
 
 const NEW_WEAPON_DESC = {
@@ -47,6 +84,7 @@ const NEW_WEAPON_DESC = {
   nova: 'Nouvelle arme — explosion périodique',
   foudre: 'Nouvelle arme — éclair qui rebondit',
   faisceau: 'Nouvelle arme — rayon perçant',
+  scie: 'Nouvelle arme — boomerang qui revient',
 };
 
 // Décrit ce que la montée de niveau d'une arme apporte (chiffres concrets).
@@ -97,7 +135,7 @@ export function rollChoices(world, n = 3) {
 
   // Déblocage d'armes non possédées (si un emplacement est libre).
   if (world.weapons.list.length < CONFIG.maxWeapons) {
-    for (const key of ['onde', 'orbital', 'nova', 'foudre', 'faisceau']) {
+    for (const key of ['onde', 'orbital', 'nova', 'foudre', 'faisceau', 'scie']) {
       if (world.weapons.has(key)) continue;
       cand.push({
         id: 'w_' + key,

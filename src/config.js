@@ -143,7 +143,7 @@ export const CONFIG = {
     bossEveryTiers: 4,
     // Plus d'ennemis À DISTANCE en profondeur -> enfer de balles à esquiver
     // (la survie devient un test d'esquive, pas de DPS).
-    typeUnlock: { 0: ['triangle', 'triangle', 'square'], 2: ['pentagon'], 3: ['dasher'], 5: ['splitter', 'pentagon'], 8: ['pentagon', 'dasher'] },
+    typeUnlock: { 0: ['triangle', 'triangle', 'square'], 2: ['pentagon'], 3: ['dasher'], 4: ['sniper'], 5: ['splitter'], 6: ['healer'], 7: ['bomber'], 8: ['pentagon', 'sniper'], 10: ['dasher', 'bomber'] },
   },
 
   // --- Collisions ---
@@ -194,6 +194,49 @@ export const CONFIG = {
       splitInto: 3,
       splitType: 'triangle',
     },
+    sniper: {
+      key: 'sniper',
+      sides: 4,
+      radius: 13,
+      hp: 18,
+      speed: 68,
+      damage: 8,
+      xp: 4,
+      behavior: 'sniper', // vise de loin avec laser télégraphié puis tire vite
+      preferredRange: 560,
+      aimTime: 1.1,
+      shootCooldown: 3.4,
+      bulletSpeed: 540,
+      bulletDamage: 15,
+    },
+    healer: {
+      key: 'healer',
+      sides: 8,
+      radius: 15,
+      hp: 26,
+      speed: 62,
+      damage: 6,
+      xp: 6,
+      behavior: 'healer', // soigne les ennemis proches -> cible prioritaire
+      preferredRange: 430,
+      healRadius: 230,
+      healFrac: 0.07,
+      healCd: 1.7,
+    },
+    bomber: {
+      key: 'bomber',
+      sides: 6,
+      radius: 18,
+      hp: 30,
+      speed: 92,
+      damage: 0,
+      xp: 4,
+      behavior: 'bomber', // s'approche puis EXPLOSE (cercle télégraphié)
+      fuseRange: 200,
+      fuseTime: 1.0,
+      blastRadius: 150,
+      blastDamage: 24,
+    },
   },
   enemyBulletMax: 600,
 
@@ -211,9 +254,12 @@ export const CONFIG = {
     retreat: 38, // se retire s'il n'est pas tué (pas de blocage)
     xp: 40,
     // `patterns` = indices des patterns définis dans entities/boss.js.
+    // mirror = proba de renvoyer un tir reçu ; pattern 5 = ponte d'ennemis (Ruche).
     variants: [
       { sides: 6, color: '#ff2d55', name: 'LE STATIQUE', patterns: [0, 1, 2] }, // hexagone
       { sides: 8, color: '#7a3cff', name: 'LE VIDE', patterns: [3, 4, 2] }, // octogone
+      { sides: 4, color: '#8af0ff', name: 'LE MIROIR', patterns: [1, 4], mirror: 0.3 }, // carré réfléchissant
+      { sides: 5, color: '#b6ff3c', name: 'LA RUCHE', patterns: [5, 2, 5] }, // pentagone pondeur
     ],
   },
 
@@ -318,6 +364,20 @@ export const CONFIG = {
       beamWidth: 18,
       color: '#ff4dd2',
     },
+    scie: {
+      name: 'Scie',
+      kind: 'projectile',
+      boomerang: true, // part, transperce, puis REVIENT vers le joueur
+      cooldown: 1.15,
+      damage: 13,
+      speed: 460,
+      bulletRadius: 10,
+      life: 1.9,
+      pierce: 999,
+      count: 1,
+      spread: 0.5,
+      color: '#ff9a00',
+    },
   },
   maxWeapons: 6, // emplacements d'armes
   maxWeaponLevel: 6, // au niveau max, l'arme peut ÉVOLUER (carte dorée)
@@ -329,6 +389,7 @@ export const CONFIG = {
     nova: { name: 'Supernova', desc: 'Zone ×1.7 · dégâts ×1.8', radius: 1.7, damage: 1.8, cooldown: 0.8 },
     foudre: { name: 'Tempête', desc: '+3 rebonds · portée ×1.4', chainAdd: 3, chainRange: 1.4, damage: 1.5, cooldown: 0.75 },
     faisceau: { name: 'Spectre laser', desc: '3 rayons en éventail', beamCount: 3, damage: 1.4, beamWidth: 1.4 },
+    scie: { name: 'Orbite folle', desc: '+2 scies · dégâts ×1.5', countAdd: 2, damage: 1.5 },
   },
   bulletMax: 420,
 

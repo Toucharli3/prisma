@@ -12,8 +12,8 @@ import { TAU, hexA } from '../engine/math.js';
 const ORBITAL_HIT_CD = 0.35; // intervalle de dégâts orbital par ennemi
 const NODE_QUERY_PAD = 24;
 
-// Multiplicateur de dégâts de la surcharge Prisma (pendant le Burst).
-const ocDmg = (world) => (world.overchargeT > 0 ? CONFIG.prismaBurst.overchargeDmg : 1);
+// Multiplicateur de dégâts global : surcharge Prisma + bonus de combo (≥25 -> +10%).
+const ocDmg = (world) => (world.overchargeT > 0 ? CONFIG.prismaBurst.overchargeDmg : 1) * (world.combo >= 25 ? 1.1 : 1);
 
 function nearestEnemy(world) {
   // Cible la plus proche (ennemi OU boss) : le boss n'est plus prioritaire, donc
@@ -81,10 +81,11 @@ export function createWeapons(world) {
       const a = ang + off;
       world.bullets.obtain().init(p.x, p.y, Math.cos(a) * w.speed, Math.sin(a) * w.speed, {
         damage: dmg,
-        radius: w.bulletRadius,
+        radius: w.bulletRadius * (1 + (p.mods.areaMul - 1) * 0.5), // Amplitude (douce)
         life: w.life,
         pierce: w.pierce,
         color: w.color,
+        boomerang: w.boomerang,
       });
     }
     if (world.onFire) world.onFire(w);
@@ -110,15 +111,17 @@ export function createWeapons(world) {
   }
 
   // Foudre : frappe la cible la plus proche puis rebondit sur les voisins.
-  function doChain(w, damageEnemy) {
+  // Le BOSS est une cible valide (sinon l'arme serait nulle contre lui).
+  function doChain(w, damageEnemy, damageBoss) {
     const p = world.player;
     const dmg = w.damage * p.mods.damageMul * ocDmg(world);
     const count = Math.max(1, w.chainCount + p.mods.projAdd);
-    const range2 = (w.chainRange || 240) ** 2;
+    const range2 = ((w.chainRange || 240) * p.mods.areaMul) ** 2; // Amplitude
     const hit = [];
     const pts = [{ x: p.x, y: p.y }];
     let cx = p.x;
     let cy = p.y;
+    let bossHit = false;
     for (let j = 0; j < count; j++) {
       let best = null;
       let bd = range2;
@@ -132,25 +135,35 @@ export function createWeapons(world) {
           best = e;
         }
       });
+      if (world.boss && !bossHit) {
+        const dx = world.boss.x - cx;
+        const dy = world.boss.y - cy;
+        if (dx * dx + dy * dy < bd) best = world.boss;
+      }
       if (!best) break;
-      hit.push(best);
+      if (best === world.boss) {
+        bossHit = true;
+        if (damageBoss) damageBoss(dmg);
+      } else {
+        hit.push(best);
+        damageEnemy(best, dmg);
+      }
       pts.push({ x: best.x, y: best.y });
       cx = best.x;
       cy = best.y;
-      damageEnemy(best, dmg);
     }
     if (pts.length > 1) chains.push({ pts, color: w.color, life: 0.13 });
   }
 
   // Faisceau : rayon(s) instantané(s) qui traversent tout sur une ligne.
   // Évolué (Spectre laser) : éventail de beamCount rayons.
-  function doBeam(w, damageEnemy) {
+  function doBeam(w, damageEnemy, damageBoss) {
     const p = world.player;
     const baseAng = aimAngle();
     if (baseAng == null) return;
     const dmg = w.damage * p.mods.damageMul * ocDmg(world);
-    const len = w.beamLength || 520;
-    const halfW = (w.beamWidth || 18) / 2;
+    const len = (w.beamLength || 520) * p.mods.areaMul; // Amplitude
+    const halfW = ((w.beamWidth || 18) * p.mods.areaMul) / 2;
     const n = w.beamCount || 1;
     for (let k = 0; k < n; k++) {
       const ang = baseAng + (n > 1 ? (k - (n - 1) / 2) * 0.42 : 0);
@@ -165,6 +178,13 @@ export function createWeapons(world) {
         const perp = Math.abs(rx * -dy + ry * dx);
         if (perp <= halfW + e.radius) damageEnemy(e, dmg);
       });
+      // Le boss est traversé aussi.
+      if (world.boss && damageBoss) {
+        const rx = world.boss.x - p.x;
+        const ry = world.boss.y - p.y;
+        const t = rx * dx + ry * dy;
+        if (t >= 0 && t <= len && Math.abs(rx * -dy + ry * dx) <= halfW + world.boss.radius) damageBoss(dmg);
+      }
       beams.push({ x1: p.x, y1: p.y, x2: p.x + dx * len, y2: p.y + dy * len, color: w.color, life: 0.1 });
     }
   }
@@ -263,8 +283,8 @@ export function createWeapons(world) {
       for (let i = beams.length - 1; i >= 0; i--) if ((beams[i].life -= dt) <= 0) beams.splice(i, 1);
     },
 
-    // Applique les dégâts de contact (orbital + nova), grille à jour.
-    applyContactDamage(damageEnemy) {
+    // Applique les dégâts de contact (orbital + nova + chaîne/rayon), grille à jour.
+    applyContactDamage(damageEnemy, damageBoss) {
       const p = world.player;
       const grid = world.grid;
 
@@ -301,14 +321,14 @@ export function createWeapons(world) {
         });
       }
 
-      // Foudre / Faisceau (déclenchés ce frame ; touchent les ennemis, pas le boss).
+      // Foudre / Faisceau (déclenchés ce frame ; le boss est une cible valide).
       for (const w of list) {
         if (w.kind === 'chain' && w.pending) {
           w.pending = false;
-          doChain(w, damageEnemy);
+          doChain(w, damageEnemy, damageBoss);
         } else if (w.kind === 'beam' && w.pending) {
           w.pending = false;
-          doBeam(w, damageEnemy);
+          doBeam(w, damageEnemy, damageBoss);
         }
       }
     },

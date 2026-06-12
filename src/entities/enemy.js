@@ -4,7 +4,7 @@
 // spatiale et appliquée ici via sepx/sepy.
 
 import { CONFIG } from '../config.js';
-import { lerp, TAU } from '../engine/math.js';
+import { lerp, TAU, hexA } from '../engine/math.js';
 
 export class Enemy {
   constructor() {
@@ -54,6 +54,22 @@ export class Enemy {
     this.eliteAura = '#ffffff';
     this.deathBullets = 0;
     this.deathBulletSpeed = 0;
+    // Sniper :
+    this.aiming = 0;
+    this.aimTime = 0;
+    // Soigneur :
+    this.healRadius = 0;
+    this.healFrac = 0;
+    this.healCd = 0;
+    this.healTimer = 0;
+    this.healReady = false;
+    // Bombardier :
+    this.fuseRange = 0;
+    this.fuseTime = 0;
+    this.fusing = -1; // -1 = pas amorcé
+    this.blastRadius = 0;
+    this.blastDamage = 0;
+    this.explodeReady = false;
   }
 
   init(def, x, y, hpScale = 1, speedScale = 1, damageScale = 1) {
@@ -83,6 +99,19 @@ export class Enemy {
     this.splitType = def.splitType || null;
     this.elite = null;
     this.deathBullets = 0;
+    this.aiming = 0;
+    this.aimTime = def.aimTime || 0;
+    this.healRadius = def.healRadius || 0;
+    this.healFrac = def.healFrac || 0;
+    this.healCd = def.healCd || 0;
+    this.healTimer = (def.healCd || 0) * (0.5 + Math.random() * 0.5);
+    this.healReady = false;
+    this.fuseRange = def.fuseRange || 0;
+    this.fuseTime = def.fuseTime || 0;
+    this.fusing = -1;
+    this.blastRadius = def.blastRadius || 0;
+    this.blastDamage = (def.blastDamage || 0) * damageScale;
+    this.explodeReady = false;
     this.x = this.px = x;
     this.y = this.py = y;
     this.sepx = 0;
@@ -137,6 +166,54 @@ export class Enemy {
         this.fireAngle = Math.atan2(ty, tx);
         this.shootTimer = this.shootCooldown;
       }
+    } else if (this.behavior === 'sniper') {
+      // Garde une grande distance ; vise (laser télégraphié) puis tire vite.
+      if (d < this.preferredRange * 0.85) {
+        dirx = -dirx;
+        diry = -diry;
+      } else if (d < this.preferredRange * 1.2) {
+        dirx = 0;
+        diry = 0;
+      }
+      if (this.aiming > 0) {
+        this.aiming -= dt;
+        this.fireAngle = Math.atan2(ty, tx); // suit la cible pendant la visée
+        dirx = 0;
+        diry = 0; // immobile pendant la visée
+        if (this.aiming <= 0) {
+          this.fireReady = true;
+          this.shootTimer = this.shootCooldown;
+        }
+      } else {
+        this.shootTimer -= dt;
+        if (this.shootTimer <= 0 && d < this.preferredRange * 1.5) this.aiming = this.aimTime;
+      }
+    } else if (this.behavior === 'healer') {
+      // Fuit le joueur et soigne les ennemis autour (la scène applique).
+      if (d < this.preferredRange) {
+        dirx = -dirx;
+        diry = -diry;
+      } else {
+        dirx *= 0.3;
+        diry *= 0.3;
+      }
+      this.healTimer -= dt;
+      if (this.healTimer <= 0) {
+        this.healReady = true;
+        this.healTimer = this.healCd;
+      }
+    } else if (this.behavior === 'bomber') {
+      if (this.fusing >= 0) {
+        // Amorcé : immobile, compte à rebours puis explosion (gérée par la scène).
+        this.fusing -= dt;
+        dirx = 0;
+        diry = 0;
+        this.sepx = 0;
+        this.sepy = 0;
+        if (this.fusing <= 0) this.explodeReady = true;
+      } else if (d < this.fuseRange) {
+        this.fusing = this.fuseTime;
+      }
     } else if (this.behavior === 'dasher') {
       if (this.dashing > 0) {
         // En pleine charge : direction verrouillée, vitesse élevée, pas de séparation.
@@ -175,6 +252,34 @@ export class Enemy {
   render(R, alpha) {
     const ix = lerp(this.px, this.x, alpha);
     const iy = lerp(this.py, this.y, alpha);
+    const ctx = R.ctx;
+    // Sniper : laser de visée télégraphié (s'intensifie à l'approche du tir).
+    if (this.aiming > 0) {
+      const a = 1 - this.aiming / this.aimTime;
+      ctx.strokeStyle = hexA(CONFIG.danger, 0.25 + a * 0.6);
+      ctx.lineWidth = 1 + a * 2;
+      ctx.beginPath();
+      ctx.moveTo(ix, iy);
+      ctx.lineTo(ix + Math.cos(this.fireAngle) * 700, iy + Math.sin(this.fireAngle) * 700);
+      ctx.stroke();
+    }
+    // Bombardier amorcé : cercle d'explosion télégraphié + clignotement.
+    if (this.fusing >= 0) {
+      const f = 1 - this.fusing / this.fuseTime;
+      ctx.strokeStyle = hexA(CONFIG.danger, 0.4 + 0.5 * Math.sin(f * 30));
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      ctx.arc(ix, iy, this.blastRadius, 0, TAU);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Soigneur : halo vert permanent (cible prioritaire identifiable).
+    if (this.behavior === 'healer') {
+      R.additive();
+      R.drawSprite(R.softDot('#2bff88', Math.round(this.radius * 1.7)), ix, iy, 0, 1, 0.55);
+      R.normal();
+    }
     // Aura d'élite (sous la forme), pulsante.
     if (this.elite) {
       R.additive();

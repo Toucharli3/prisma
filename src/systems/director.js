@@ -48,7 +48,8 @@ export function createDirector() {
       const m = (world ? world.time : 0) / 60;
       return {
         hp: Math.pow(d.hpGrowPerMin, m),
-        dmg: 1 + d.dmgRatePerMin * m,
+        // Démarrage en douceur : la montée des dégâts commence après 30 s.
+        dmg: 1 + d.dmgRatePerMin * Math.max(0, m - 0.5),
         speed: Math.min(d.speedCap, 1 + d.speedRatePerMin * m),
       };
     },

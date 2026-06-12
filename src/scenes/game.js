@@ -59,6 +59,7 @@ export function createGameScene() {
   const pickups = []; // objets de map : { type, x, y, t }
   let hazardTimer = CONFIG.hazards.firstDelay;
   let bombTimer = CONFIG.bomb.spawnInterval;
+  let meteorTimer = 0;
 
   function spawnRing(x, y, maxR, color, width) {
     if (CONFIG.perf) return;
@@ -66,19 +67,20 @@ export function createGameScene() {
     if (rings.length > 36) rings.shift();
   }
 
-  function spawnHazard() {
+  function spawnHazard(opts = {}) {
     const h = CONFIG.hazards;
     const m = world.time / 60;
     const ang = world.rng() * TAU;
-    const dist = h.spawnNearMin + world.rng() * (h.spawnNearMax - h.spawnNearMin);
+    const dist = opts.distMin != null ? opts.distMin + world.rng() * (opts.distMax - opts.distMin) : h.spawnNearMin + world.rng() * (h.spawnNearMax - h.spawnNearMin);
     const a = CONFIG.arena;
     const mar = a.margin + 60;
     hazards.push({
       x: clamp(player.x + Math.cos(ang) * dist, mar, a.width - mar),
       y: clamp(player.y + Math.sin(ang) * dist, mar, a.height - mar),
-      r: Math.min(h.rMax, h.rBase + h.rPerMin * m),
+      r: opts.r != null ? opts.r : Math.min(h.rMax, h.rBase + h.rPerMin * m),
       state: 'warn',
-      t: h.warn,
+      t: opts.warn != null ? opts.warn : h.warn,
+      activeDur: opts.active != null ? opts.active : h.active,
     });
   }
 
@@ -338,6 +340,11 @@ export function createGameScene() {
       if (dx * dx + dy * dy <= rr * rr) {
         boss.lastBulletId = b.id;
         damageBoss(b.damage);
+        // LE MIROIR : renvoie une partie des tirs reçus vers le joueur.
+        if (boss && boss.mirror > 0 && world.rng() < boss.mirror) {
+          const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
+          enemyBullets.obtain().init(boss.x, boss.y, Math.cos(ang) * 320, Math.sin(ang) * 320, { damage: boss.bulletDamage * 0.8, radius: 7, life: 2.6, pierce: 0, color: '#8af0ff' });
+        }
         if (b.pierce > 0) b.pierce--;
         else b.alive = false;
       }
@@ -378,10 +385,11 @@ export function createGameScene() {
     player.update(dt);
     director.update(dt, world);
     weapons.update(dt);
-    bullets.forEach((b) => b.update(dt));
+    bullets.forEach((b) => b.update(dt, player)); // player : retour des boomerangs
     enemyBullets.forEach((b) => b.update(dt));
 
-    const collectR = CONFIG.playerStats.collectRadius * player.mods.collectMul;
+    // Dash aspirateur : pendant le dash, le rayon de collecte est triplé.
+    const collectR = CONFIG.playerStats.collectRadius * player.mods.collectMul * (player.dashTime > 0 ? 3 : 1);
     orbs.forEach((o) => {
       const got = o.update(dt, player, collectR);
       if (got) gainXp(got);
@@ -409,7 +417,7 @@ export function createGameScene() {
         if (z.state === 'warn') {
           if (z.t <= 0) {
             z.state = 'active';
-            z.t = h.active;
+            z.t = z.activeDur != null ? z.activeDur : h.active;
           }
         } else if (z.state === 'active') {
           const dx = player.x - z.x;
@@ -427,6 +435,15 @@ export function createGameScene() {
       if (hazardTimer <= 0) {
         spawnHazard();
         hazardTimer = Math.max(h.minInterval, h.baseInterval / (1 + h.intervalTightenPerMin * hm));
+      }
+      // MÉTÉORES pendant les pics : pluie de petites zones rapides à esquiver.
+      if (world.phase === 'peak') {
+        meteorTimer -= dt;
+        if (meteorTimer <= 0) {
+          meteorTimer = 1.7;
+          spawnHazard({ r: 75, warn: 0.85, active: 0.4, distMin: 60, distMax: 320 });
+          spawnHazard({ r: 75, warn: 0.85, active: 0.4, distMin: 60, distMax: 320 });
+        }
       }
     }
 
@@ -470,6 +487,30 @@ export function createGameScene() {
         e.fireReady = false;
         enemyBullets.obtain().init(e.x, e.y, Math.cos(e.fireAngle) * e.bulletSpeed, Math.sin(e.fireAngle) * e.bulletSpeed, { damage: e.bulletDamage, radius: 6, life: 3, pierce: 0, color: CONFIG.danger });
       }
+      // Soigneur : régénère les ennemis autour (impulsion verte).
+      if (e.healReady) {
+        e.healReady = false;
+        let healed = 0;
+        grid.queryCircle(e.x, e.y, e.healRadius, (o) => {
+          if (o !== e && o.alive && o.hp < o.maxHp) {
+            o.hp = Math.min(o.maxHp, o.hp + o.maxHp * e.healFrac);
+            healed++;
+          }
+        });
+        if (healed > 0) spawnRing(e.x, e.y, e.healRadius, '#2bff88', 2.5);
+      }
+      // Bombardier : explosion (cercle télégraphié écoulé).
+      if (e.explodeReady) {
+        e.explodeReady = false;
+        e.alive = false; // pas de kill -> pas d'orbe (il s'est sacrifié)
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
+        if (dx * dx + dy * dy < e.blastRadius * e.blastRadius && player.takeDamage(e.blastDamage)) playerHurt();
+        particles.burst(e.x, e.y, CONFIG.perf ? 10 : 22, [CONFIG.danger, '#ff8a00', '#ffd000'], world.rng, 1.4);
+        spawnRing(e.x, e.y, e.blastRadius, CONFIG.danger, 5);
+        Render.addShake(0.25);
+        Audio.nova();
+      }
     });
     if (boss) {
       boss.update(dt, world);
@@ -482,7 +523,7 @@ export function createGameScene() {
 
     rebuildGrid();
     bulletCollisions();
-    weapons.applyContactDamage(damageEnemy);
+    weapons.applyContactDamage(damageEnemy, damageBoss);
     bossCollisions();
 
     enemies.forEach((e) => {

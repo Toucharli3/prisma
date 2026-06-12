@@ -31,16 +31,33 @@ export class Bullet {
     this.vx = vx;
     this.vy = vy;
     this.life = o.life;
+    this.maxLife = o.life;
     this.damage = o.damage;
     this.radius = o.radius;
     this.pierce = o.pierce;
     this.color = o.color;
+    this.boomerang = !!o.boomerang;
     this.id = BULLET_ID++;
   }
 
-  update(dt) {
+  update(dt, player) {
     this.px = this.x;
     this.py = this.y;
+
+    // Boomerang (Scie) : seconde moitié de vie = retour vers le joueur.
+    if (this.boomerang && player && this.life < this.maxLife * 0.55) {
+      const dx = player.x - this.x;
+      const dy = player.y - this.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const sp = Math.hypot(this.vx, this.vy) || 300;
+      this.vx = (dx / d) * sp;
+      this.vy = (dy / d) * sp;
+      if (d < player.radius + this.radius) {
+        this.alive = false; // rattrapée
+        return;
+      }
+    }
+
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.life -= dt;

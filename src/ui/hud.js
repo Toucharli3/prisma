@@ -100,8 +100,8 @@ export function drawHud(R, world) {
   ctx.fillStyle = CONFIG.textPrimary;
   ctx.fillText(`SCORE ${world.score}`, vw - 16, 32);
 
-  // Jauge de dash (bas-centre).
-  const dr = 1 - Math.max(0, p.dashCd) / CONFIG.dash.cooldown;
+  // Jauge de dash (bas-centre). Cooldown effectif (Réflexe).
+  const dr = 1 - Math.max(0, p.dashCd) / (CONFIG.dash.cooldown * (p.mods.dashCdMul || 1));
   const dbw = 130;
   const dbx = (vw - dbw) / 2;
   const dby = vh - 20;
