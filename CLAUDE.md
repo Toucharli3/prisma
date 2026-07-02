@@ -33,14 +33,16 @@ npm run preview  # prévisualise le build
 
 ## Architecture
 
-- `src/config.js` — **toutes** les constantes (DA, palettes, équilibrage).
+- `src/config.js` — **toutes** les constantes (DA, palettes, équilibrage,
+  directeur, hazards, bombe, burst, élites, évolutions).
 - `src/main.js` — bootstrap, contexte `app`, machine à états des scènes, boucle.
-- `src/engine/` — `loop`, `input`, `render` (+ `audio`, `pool`, `grid`,
-  `particles`, `save`, `math`).
+- `src/engine/` — `loop`, `input` (clavier + souris + manette), `render`,
+  `audio`, `pool`, `grid`, `particles`, `floaters`, `save`, `leaderboard`, `math`.
 - `src/entities/` — `player`, `enemy`, `bullet`, `orb`, `boss`.
-- `src/systems/` — `spawner`, `upgrades`, `colorfield`, `weapons`.
-- `src/scenes/` — `menu`, `game`, `upgrade`, `pause`, `gameover`, `victory`.
-- `src/ui/` — `hud`, `widgets`.
+- `src/systems/` — `director` (rythme sans-fin), `upgrades`, `colorfield`,
+  `weapons`, `backdrop`.
+- `src/scenes/` — `menu`, `game`, `upgrade`, `pause`, `gameover`, `options`.
+- `src/ui/` — `hud`, `widgets`, `nameInput`.
 
 Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 
@@ -80,12 +82,24 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
       localStorage (`engine/save.js` : highscore, biome atteint, victoires,
       armes de départ débloquées, réglages), passe d'équilibrage, profilage perf
       (≈3.8 ms/frame avec 150 ennemis → ~4× la marge 60 fps). `debug:false` (F3).
+- [x] **Post-campagne — refonte sans fin** : la campagne 5 niveaux a été
+      remplacée par un **mode sans fin rythmé** (`systems/director.js` : cycles
+      montée → pic télégraphié → respiration, +1 palier/cycle, boss au pic).
+      Ajouts : dash (i-frames), bombe de couleur (E), PRISMA BURST (R, jauge de
+      couleur pleine → déflagration + surcharge), failles du Statique + météores,
+      élites (aura + affixes), évolutions d'armes, 2 variantes de boss (phase 2
+      enragée), skins débloquables, mini-carte, classement en ligne
+      (Vercel/Upstash, repli local) avec pseudo. Manette complète (stick +
+      dash/bombe/burst/pause). Projectiles ennemis à rendu distinct (`hostile`).
 
 ## Contrôles
 
 - Déplacement : **ZQSD / WASD / flèches** · tir **automatique** (ou visée souris en option)
+- **Espace / Shift** : dash (i-frames) · **E** : bombe de couleur · **R** : PRISMA BURST (jauge pleine)
 - **P / Échap** : pause · **O** : options · **M** : muet · **F3** : overlay debug (FPS)
 - Menus : **flèches / 1-2-3 / Entrée / clic**
+- **Manette** : stick gauche = bouger · A/RB = dash + valider · B = bombe ·
+  X = burst · Start = pause (mapping dans `engine/input.js`, `pollGamepad`)
 
 ## Comment étendre (data-driven)
 
@@ -93,8 +107,9 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
   avec un `kind` (`projectile` | `orbital` | `nova`). Référence-la dans
   `systems/upgrades.js` (déblocage) — c'est tout. Pour un nouveau `kind`, gère-le
   dans `systems/weapons.js` (fire/applyContactDamage/render).
-- **Ajouter un niveau/biome** : ajoute une palette dans `PALETTES` et une entrée
-  dans `CONFIG.levels` (spawn, killsToFull, bossTrigger). Tout le reste suit.
+- **Ajouter un biome** : ajoute une palette dans `PALETTES` — les paliers du
+  mode sans fin les parcourent en boucle (`onTierUp`). Le rythme (montée / pic /
+  respiration, scaling par palier) se règle dans `CONFIG.director`.
 - **Ajouter un ennemi** : ajoute une entrée dans `CONFIG.enemyTypes` (sides, hp,
   speed, `behavior`...) et inclus sa clé dans les `types` d'un niveau. Un nouveau
   comportement se code dans `entities/enemy.js` (`update`).

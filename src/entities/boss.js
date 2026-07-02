@@ -5,7 +5,7 @@ import { CONFIG } from '../config.js';
 import { lerp, TAU } from '../engine/math.js';
 
 function fire(b, w, ang, sp) {
-  w.enemyBullets.obtain().init(b.x, b.y, Math.cos(ang) * sp, Math.sin(ang) * sp, { damage: b.bulletDamage, radius: 8, life: 3.4, pierce: 0, color: CONFIG.danger });
+  w.enemyBullets.obtain().init(b.x, b.y, Math.cos(ang) * sp, Math.sin(ang) * sp, { damage: b.bulletDamage, radius: 8, life: 3.4, pierce: 0, color: CONFIG.danger, hostile: true });
 }
 
 // Patterns indexés (référencés par variant.patterns dans config).

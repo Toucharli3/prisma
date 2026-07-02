@@ -37,6 +37,7 @@ export class Bullet {
     this.pierce = o.pierce;
     this.color = o.color;
     this.boomerang = !!o.boomerang;
+    this.hostile = !!o.hostile; // projectile ENNEMI (rendu distinct)
     this.id = BULLET_ID++;
   }
 
@@ -74,6 +75,13 @@ export class Bullet {
   render(R, alpha) {
     const ix = lerp(this.px, this.x, alpha);
     const iy = lerp(this.py, this.y, alpha);
+    // Projectile ennemi : orbe ronde pulsante (lisible, pas de bolt étiré) —
+    // le joueur distingue d'un coup d'œil ses tirs des tirs adverses.
+    if (this.hostile) {
+      const pulse = 1 + 0.22 * Math.sin((this.maxLife - this.life) * 14);
+      R.drawSprite(R.glowSprite(this.color, this.color, this.radius, 2.1), ix, iy, 0, pulse);
+      return;
+    }
     const spr = R.glowSprite('#ffffff', this.color, this.radius, 2.4);
     const ctx = R.ctx;
     // Étiré dans le sens du déplacement -> trait lumineux (bolt).

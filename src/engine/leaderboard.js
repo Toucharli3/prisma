@@ -102,7 +102,7 @@ export const Leaderboard = {
 
   async submit(entry) {
     const e = { name: cleanName(entry.name), score: cleanScore(entry.score), biome: Math.max(1, parseInt(entry.biome) || 1) };
-    localInsert({ name: e.name, score: e.score, biome: e.biome }); // secours local
+    const localRank = localInsert({ name: e.name, score: e.score, biome: e.biome }); // secours local (une seule fois)
     try {
       if (SUPA) {
         await supaSubmit(e);
@@ -115,7 +115,7 @@ export const Leaderboard = {
       return { rank: data.rank, scores: data.scores || [], online: true };
     } catch {
       online = false;
-      return { rank: localInsert({ name: e.name, score: e.score, biome: e.biome }), scores: localTop(10), online: false };
+      return { rank: localRank, scores: localTop(10), online: false };
     }
   },
 };

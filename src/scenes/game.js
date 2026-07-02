@@ -43,6 +43,7 @@ export function createGameScene() {
   let pauseOptions = null;
   let pendingLevels = 0;
   let boss = null;
+  let ended = false; // partie terminée (empêche un double gameOver)
 
   const player = new Player();
   const enemies = new Pool(() => new Enemy(), 96);
@@ -238,7 +239,7 @@ export function createGameScene() {
       if (e.deathBullets > 0) {
         for (let i = 0; i < e.deathBullets; i++) {
           const a = (i / e.deathBullets) * TAU;
-          enemyBullets.obtain().init(e.x, e.y, Math.cos(a) * e.deathBulletSpeed, Math.sin(a) * e.deathBulletSpeed, { damage: e.damage * 0.6, radius: 6, life: 2.2, pierce: 0, color: CONFIG.danger });
+          enemyBullets.obtain().init(e.x, e.y, Math.cos(a) * e.deathBulletSpeed, Math.sin(a) * e.deathBulletSpeed, { damage: e.damage * 0.6, radius: 6, life: 2.2, pierce: 0, color: CONFIG.danger, hostile: true });
         }
       }
       colorfield.addCharge(CONFIG.elites.prismaFill);
@@ -343,7 +344,7 @@ export function createGameScene() {
         // LE MIROIR : renvoie une partie des tirs reçus vers le joueur.
         if (boss && boss.mirror > 0 && world.rng() < boss.mirror) {
           const ang = Math.atan2(player.y - boss.y, player.x - boss.x);
-          enemyBullets.obtain().init(boss.x, boss.y, Math.cos(ang) * 320, Math.sin(ang) * 320, { damage: boss.bulletDamage * 0.8, radius: 7, life: 2.6, pierce: 0, color: '#8af0ff' });
+          enemyBullets.obtain().init(boss.x, boss.y, Math.cos(ang) * 320, Math.sin(ang) * 320, { damage: boss.bulletDamage * 0.8, radius: 7, life: 2.6, pierce: 0, color: '#8af0ff', hostile: true });
         }
         if (b.pierce > 0) b.pierce--;
         else b.alive = false;
@@ -485,7 +486,7 @@ export function createGameScene() {
       e.update(dt, player);
       if (e.fireReady) {
         e.fireReady = false;
-        enemyBullets.obtain().init(e.x, e.y, Math.cos(e.fireAngle) * e.bulletSpeed, Math.sin(e.fireAngle) * e.bulletSpeed, { damage: e.bulletDamage, radius: 6, life: 3, pierce: 0, color: CONFIG.danger });
+        enemyBullets.obtain().init(e.x, e.y, Math.cos(e.fireAngle) * e.bulletSpeed, Math.sin(e.fireAngle) * e.bulletSpeed, { damage: e.bulletDamage, radius: 6, life: 3, pierce: 0, color: CONFIG.danger, hostile: true });
       }
       // Soigneur : régénère les ennemis autour (impulsion verte).
       if (e.healReady) {
@@ -565,7 +566,8 @@ export function createGameScene() {
     enemyBullets.sweep();
     orbs.sweep();
 
-    if (player.dead) {
+    if (player.dead && !ended) {
+      ended = true; // garde : une seule transition (et une seule soumission de score)
       app.gameOver({
         score: world.score,
         kills: world.kills,
@@ -724,6 +726,7 @@ export function createGameScene() {
       mode = 'play';
       pendingLevels = 0;
       pauseOptions = null;
+      ended = false;
     },
 
     update(dt) {

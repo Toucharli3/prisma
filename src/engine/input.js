@@ -107,6 +107,27 @@ export const Input = {
     return false;
   },
 
+  // Boutons manette -> touches virtuelles : A/RB = dash (Espace), B = bombe (E),
+  // X = Prisma Burst (R), Start = pause (Échap). À appeler en début de frame.
+  _padWas: {},
+  pollGamepad() {
+    const gp = this._gamepad();
+    if (!gp) return;
+    const MAP = [[0, 'Space'], [5, 'Space'], [1, 'KeyE'], [2, 'KeyR'], [9, 'Escape']];
+    for (let i = 0; i < MAP.length; i++) {
+      const btn = MAP[i][0];
+      const code = MAP[i][1];
+      const down = !!(gp.buttons[btn] && gp.buttons[btn].pressed);
+      if (down && !this._padWas[btn]) {
+        justPressed.add(code);
+        keys.add(code);
+      } else if (!down && this._padWas[btn]) {
+        keys.delete(code);
+      }
+      this._padWas[btn] = down;
+    }
+  },
+
   _gamepad() {
     if (this._gamepadIndex == null || !navigator.getGamepads) return null;
     return navigator.getGamepads()[this._gamepadIndex] || null;

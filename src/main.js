@@ -36,6 +36,7 @@ const app = {
 
 const loop = createLoop({
   update(dt) {
+    Input.pollGamepad(); // boutons manette -> touches virtuelles
     if (Input.pressed('KeyM')) {
       Audio.toggleMute();
       Save.syncSettings();
