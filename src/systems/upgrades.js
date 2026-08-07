@@ -138,6 +138,7 @@ function sample(cands, n, rng) {
 
 export function rollChoices(world, n = 3) {
   const cand = [];
+  const banned = world.banished; // Set d'ids bannis pour le reste de la partie
 
   for (const u of STAT) {
     if (!u.avail || u.avail(world)) cand.push(u);
@@ -184,5 +185,7 @@ export function rollChoices(world, n = 3) {
     });
   }
 
-  return sample(cand, n, world.rng);
+  // Les cartes bannies sortent du tirage — sauf si bannir viderait le paquet.
+  const kept = banned ? cand.filter((c) => !banned.has(c.id)) : cand;
+  return sample(kept.length >= n ? kept : cand, n, world.rng);
 }

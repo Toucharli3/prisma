@@ -168,6 +168,9 @@ export function createGameScene() {
     overchargeT: 0, // surcharge Prisma (après un Burst)
     bossKills: 0,
     bombsUsed: 0,
+    rerolls: CONFIG.picks.rerolls,
+    banishes: CONFIG.picks.banishes,
+    banished: new Set(), // ids de cartes retirées du tirage pour la partie
     mouseWorld: { x: 0, y: 0 },
   };
   const weapons = createWeapons(world);
@@ -227,12 +230,27 @@ export function createGameScene() {
     Audio.levelup();
   }
   function openUpgrade() {
-    upgrade = createUpgradeOverlay(world, rollChoices(world, 3), (choice) => {
-      choice.apply(world);
-      pendingLevels--;
-      if (pendingLevels > 0) startLevelUp();
-      else mode = 'play';
-    });
+    upgrade = createUpgradeOverlay(
+      world,
+      rollChoices(world, 3),
+      (choice) => {
+        choice.apply(world);
+        pendingLevels--;
+        if (pendingLevels > 0) startLevelUp();
+        else mode = 'play';
+      },
+      () => {
+        if (world.rerolls <= 0) return null;
+        world.rerolls--;
+        return rollChoices(world, 3);
+      },
+      (choice) => {
+        if (world.banishes <= 0) return null;
+        world.banishes--;
+        world.banished.add(choice.id); // définitif pour le reste de la partie
+        return rollChoices(world, 3);
+      }
+    );
     mode = 'upgrade';
   }
 
@@ -754,6 +772,9 @@ export function createGameScene() {
       ended = false;
       pausedByBlur = false;
       hitstop = 0;
+      world.rerolls = CONFIG.picks.rerolls;
+      world.banishes = CONFIG.picks.banishes;
+      world.banished.clear();
     },
 
     update(dt) {

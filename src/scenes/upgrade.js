@@ -10,10 +10,13 @@ import { hexA, TAU } from '../engine/math.js';
 import { roundRect, wrapText } from '../ui/widgets.js';
 import { FONT, FONT_TITLE } from '../ui/fonts.js';
 
-export function createUpgradeOverlay(world, choices, onPick) {
+// onReroll() doit renvoyer un NOUVEAU tirage (ou null si plus de relances).
+export function createUpgradeOverlay(world, initialChoices, onPick, onReroll, onBanish) {
+  let choices = initialChoices;
   let sel = 0;
   let t = 0;
   let rects = [];
+  let flash = 0; // éclair bref quand la main change
 
   function layout() {
     const vw = Render.viewW;
@@ -32,6 +35,29 @@ export function createUpgradeOverlay(world, choices, onPick) {
   function pick() {
     Audio.uiSelect();
     onPick(choices[sel]);
+  }
+
+  // Relance : nouvelle main, la sélection revient au début.
+  function reroll() {
+    if (!onReroll || world.rerolls <= 0) return;
+    const next = onReroll();
+    if (!next) return;
+    choices = next;
+    sel = Math.min(sel, choices.length - 1);
+    flash = 0.25;
+    Audio.uiSelect();
+  }
+
+  // Bannissement : la carte visée disparaît du tirage pour toute la partie,
+  // puis la main est retirée pour la remplacer immédiatement.
+  function banish() {
+    if (!onBanish || world.banishes <= 0 || choices.length === 0) return;
+    const next = onBanish(choices[sel]);
+    if (!next) return;
+    choices = next;
+    sel = Math.min(sel, choices.length - 1);
+    flash = 0.25;
+    Audio.nova();
   }
 
   function move(d) {
@@ -88,10 +114,13 @@ export function createUpgradeOverlay(world, choices, onPick) {
   }
 
   return {
-    choices, // exposé pour debug/tests
+    get choices() {
+      return choices; // exposé pour debug/tests (la main change au reroll)
+    },
 
     update(dt) {
       t += dt;
+      if (flash > 0) flash -= dt;
       layout();
 
       // Survol / clic souris.
@@ -127,6 +156,8 @@ export function createUpgradeOverlay(world, choices, onPick) {
         pick();
         return;
       }
+      if (Input.pressed('KeyR')) reroll();
+      if (Input.pressed('KeyX')) banish();
       if (Input.pressed('Enter', 'Space')) pick();
     },
 
@@ -149,6 +180,30 @@ export function createUpgradeOverlay(world, choices, onPick) {
       ctx.fillText('Choisis une amélioration', vw / 2, rects[0].y - 26);
 
       for (let i = 0; i < choices.length; i++) drawCard(ctx, rects[i], choices[i], i, i === sel);
+
+      // Barre d'actions : relance et bannissement, grisés une fois épuisés.
+      const by = rects[0].y + rects[0].h + 34;
+      const canR = world.rerolls > 0;
+      const canB = world.banishes > 0;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.font = `700 15px ${FONT}`;
+      const gap = 26;
+      const lR = `⟳ RELANCER  [R] ×${world.rerolls}`;
+      const lB = `⊘ BANNIR  [X] ×${world.banishes}`;
+      const wR = ctx.measureText(lR).width;
+      const wB = ctx.measureText(lB).width;
+      const x0 = vw / 2 - (wR + gap + wB) / 2;
+      ctx.fillStyle = canR ? CONFIG.player.glowColor : 'rgba(150,150,170,0.35)';
+      ctx.fillText(lR, x0 + wR / 2, by);
+      ctx.fillStyle = canB ? '#ff6a3d' : 'rgba(150,150,170,0.35)';
+      ctx.fillText(lB, x0 + wR + gap + wB / 2, by);
+
+      // Éclair bref quand la main vient de changer (relance / bannissement).
+      if (flash > 0) {
+        ctx.fillStyle = `rgba(255,255,255,${0.16 * (flash / 0.25)})`;
+        ctx.fillRect(0, 0, vw, vh);
+      }
     },
   };
 }

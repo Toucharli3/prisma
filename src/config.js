@@ -24,6 +24,12 @@ export const CONFIG = {
   // Vibration manette (Gamepad Haptics). Ignorée si la manette ne la gère pas.
   rumble: { enabled: true },
 
+  // Relance / bannissement sur l'écran de niveau. C'est LE levier de contrôle
+  // du genre : sans lui, une main de trois cartes inutiles est subie. Bannir
+  // retire définitivement la carte du tirage de la partie, ce qui permet de
+  // « nettoyer » le paquet pour faire remonter les cartes de son build.
+  picks: { rerolls: 3, banishes: 2 },
+
   // Chaîne GPU (engine/postfx.js). Quand WebGL2 est disponible, elle REMPLACE
   // le bloom Canvas 2D ci-dessus ainsi que la vignette et les scanlines : le
   // seuil y est calculé sur la luminance (et non canal par canal), ce qui
