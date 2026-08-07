@@ -108,20 +108,33 @@ export const CONFIG = {
     buildEnd: 22,
     peakEnd: 28,
     telegraph: 1.8,
-    baseInterval: 1.1,
-    peakInterval: 0.4,
-    breatherInterval: 1.8,
-    batch: 2,
-    peakBatch: 3,
+    // Cadence de spawn. Elle était trop basse d'un facteur ~4 : le joueur
+    // nettoyait 30 ennemis/s pour 2 qui arrivaient, donc l'arène restait VIDE
+    // et il ne se passait rien pendant 12 minutes. C'est la densité à l'écran
+    // qui fait la menace dans ce genre, pas les PV unitaires.
+    baseInterval: 0.62,
+    peakInterval: 0.26,
+    breatherInterval: 1.0,
+    batch: 4,
+    peakBatch: 8,
     spawnDist: 820,
+    // Montée en régime : 12% de la cadence au départ, plein régime à 3 min.
+    warmupStart: 0.12,
+    warmupMin: 3,
     // --- Scaling piloté par le TEMPS (m = minutes écoulées) ---
-    hpGrowPerMin: 1.5, // PV ennemis = base × 1.5^m (exponentiel : suit ta puissance)
-    dmgRatePerMin: 1.2, // dégâts = base × (1 + 1.2·m) -> létal encore plus vite
+    // PV = (1 + m/hpHalfLife)^hpExp — LOI DE PUISSANCE, pas exponentielle.
+    // Voir le commentaire de difficultyScales() dans systems/director.js : une
+    // exponentielle ne peut pas être suivie par la puissance du joueur (qui est
+    // polynomiale dans le temps), d'où l'ancien plateau mou puis la falaise.
+    // Réglé pour une partie d'environ 13 min en jeu parfait (`node tools/balance.mjs`).
+    hpHalfLife: 4,
+    hpExp: 2.5,
+    dmgRatePerMin: 0.85, // dégâts = base × (1 + 0.85·m) — c'est CE qui tue, pas les PV
     speedRatePerMin: 0.06, // vitesse = min(cap, 1 + 0.06·m)
     speedCap: 1.95,
-    densStart: 46, // densité = densStart + densPerMin·m (plafond maxAliveCap)
-    densPerMin: 14,
-    maxAliveCap: 140,
+    densStart: 55, // densité = densStart + densPerMin·m (plafond maxAliveCap)
+    densPerMin: 18,
+    maxAliveCap: 200, // plafond perf (profilé ~60 fps sur GPU intégré)
     intervalTightenPerMin: 0.06, // spawns plus denses avec le temps
     bossEveryTiers: 4,
     // Plus d'ennemis À DISTANCE en profondeur -> enfer de balles à esquiver
@@ -248,18 +261,20 @@ export const CONFIG = {
 
   // --- Armes (data-driven). kind: projectile | orbital | nova | chain | beam ---
   weapons: {
+    // Chaque arme domine UN axe (mono-cible OU nuée), jamais les deux.
+    // Écarts vérifiés par `node tools/balance.mjs` (cible ≤ ×2 par axe).
     eclat: {
       name: 'Éclat',
       kind: 'projectile',
       auto: true,
-      cooldown: 0.27,
-      damage: 7,
+      cooldown: 0.3,
+      damage: 5.5,
       speed: 640,
       bulletRadius: 5,
       life: 1.0,
       pierce: 0,
       count: 1,
-      countPerLevel: 0.5, // +1 projectile tous les 2 niveaux
+      countPerLevel: 0.6, // généraliste : mono correct, nuée correcte
       spread: 0.13,
       color: '#00e5ff',
     },
@@ -268,12 +283,12 @@ export const CONFIG = {
       kind: 'projectile',
       auto: true,
       cooldown: 0.72,
-      damage: 10,
+      damage: 9,
       speed: 520,
       bulletRadius: 7,
       life: 1.5,
       pierce: 3,
-      piercePerLevel: 1, // transperce de plus en plus d'ennemis
+      piercePerLevel: 0.6, // spécialiste des files d'ennemis alignés
       count: 1,
       spread: 0,
       color: '#18ffd5',
@@ -281,19 +296,19 @@ export const CONFIG = {
     orbital: {
       name: 'Orbital',
       kind: 'orbital',
-      damage: 6, // par contact (avec cooldown par ennemi)
+      damage: 11, // par contact (avec cooldown par ennemi)
       count: 2,
       countPerLevel: 0.5,
       radius: 82, // rayon d'orbite
-      rotSpeed: 2.3, // rad/s
+      rotSpeed: 2.8, // rad/s
       nodeRadius: 11,
       color: '#b14dff',
     },
     nova: {
       name: 'Nova',
       kind: 'nova',
-      cooldown: 2.6,
-      damage: 16,
+      cooldown: 1.9,
+      damage: 21, // zone pure : le meilleur en nuée, faible en mono
       radius: 150, // multiplié par mods.areaMul
       color: '#ff4dd2',
     },
@@ -304,14 +319,14 @@ export const CONFIG = {
       damage: 12,
       chainRange: 240, // portée de rebond
       chainCount: 4, // nombre de cibles touchées
-      countPerLevel: 1, // +1 rebond / niveau
+      countPerLevel: 0.6, // +1 rebond tous les ~2 niveaux
       color: '#b6ff3c',
     },
     faisceau: {
       name: 'Faisceau',
       kind: 'beam', // rayon instantané qui traverse tout sur une ligne
-      cooldown: 1.0,
-      damage: 9,
+      cooldown: 0.8,
+      damage: 18, // LE tueur de boss : meilleur mono-cible, nuée moyenne
       beamLength: 540,
       beamWidth: 18,
       color: '#ff4dd2',
@@ -321,7 +336,7 @@ export const CONFIG = {
       kind: 'projectile',
       boomerang: true, // part, transperce, puis REVIENT vers le joueur
       cooldown: 1.15,
-      damage: 13,
+      damage: 13.5,
       speed: 460,
       bulletRadius: 10,
       life: 1.9,
@@ -334,13 +349,16 @@ export const CONFIG = {
   maxWeapons: 6, // emplacements d'armes
   maxWeaponLevel: 6, // au niveau max, l'arme peut ÉVOLUER (carte dorée)
   // Évolutions : multiplicateurs appliqués sur les stats du niveau max.
+  // Calibrées à ×1.8-2.2 sur l'axe de l'arme. L'ancienne évolution de l'Éclat
+  // cumulait cadence ×2 + 2 projectiles + dégâts ×1.3, soit ×4.3 en nuée d'un
+  // seul coup — l'arme de départ devenait la meilleure du jeu sur les DEUX axes.
   evolutions: {
-    eclat: { name: 'Mitraille prismatique', desc: 'Cadence ×2 · +2 projectiles', cooldown: 0.5, countAdd: 2, damage: 1.3 },
-    onde: { name: 'Raz-de-marée', desc: 'Transperce tout · onde géante', pierceSet: 999, bulletRadius: 1.9, damage: 1.6, speed: 1.2 },
-    orbital: { name: 'Constellation', desc: '+3 orbes · rotation rapide', countAdd: 3, rotSpeed: 1.6, nodeRadius: 1.4, damage: 1.5 },
-    nova: { name: 'Supernova', desc: 'Zone ×1.7 · dégâts ×1.8', radius: 1.7, damage: 1.8, cooldown: 0.8 },
-    foudre: { name: 'Tempête', desc: '+3 rebonds · portée ×1.4', chainAdd: 3, chainRange: 1.4, damage: 1.5, cooldown: 0.75 },
-    faisceau: { name: 'Spectre laser', desc: '3 rayons en éventail', beamCount: 3, damage: 1.4, beamWidth: 1.4 },
+    eclat: { name: 'Mitraille prismatique', desc: 'Cadence +40% · +1 projectile', cooldown: 0.72, countAdd: 1, damage: 1.25 },
+    onde: { name: 'Raz-de-marée', desc: 'Transperce tout · onde géante', pierceSet: 999, bulletRadius: 1.9, damage: 1.5, speed: 1.2 },
+    orbital: { name: 'Constellation', desc: '+1 orbe · rotation rapide', countAdd: 1, rotSpeed: 1.15, nodeRadius: 1.4, damage: 1.25 },
+    nova: { name: 'Supernova', desc: 'Zone ×1.7 · dégâts ×1.6', radius: 1.7, damage: 1.6, cooldown: 0.85 },
+    foudre: { name: 'Tempête', desc: '+3 rebonds · portée ×1.4', chainAdd: 3, chainRange: 1.4, damage: 1.4, cooldown: 0.8 },
+    faisceau: { name: 'Lance perforante', desc: 'Dégâts ×1.8 · rayon élargi', damage: 1.8, beamWidth: 1.6, beamLength: 1.4 },
     scie: { name: 'Orbite folle', desc: '+2 scies · dégâts ×1.5', countAdd: 2, damage: 1.5 },
   },
   bulletMax: 420,
@@ -381,7 +399,10 @@ export const CONFIG = {
   // Courbe modérée : level-ups réguliers SANS exploser (sinon plus aucun choix en
   // fin). L'XP des orbes monte avec la profondeur (orbXpDepth) pour garder la
   // cadence ~constante quel que soit le biome.
-  xp: { base: 18, growth: 1.16, orbXpDepth: 0.22 }, // requis = base*growth^(niv-1) ; orbe ×(1+tier*orbXpDepth)
+  // base relevée en même temps que la cadence de spawn : avec 4× plus de kills,
+  // l'ancienne base 18 donnait le niveau 7 en une minute (arme au max + évoluée
+  // avant la 2ᵉ minute — plus aucun choix intéressant ensuite).
+  xp: { base: 34, growth: 1.15, orbXpDepth: 0.22 }, // requis = base*growth^(niv-1) ; orbe ×(1+tier*orbXpDepth)
   levelUp: { slowmoTime: 0.35, slowmoScale: 0.18 }, // ralenti à la montée de niveau
   orbMax: 400,
   orb: { radius: 7, magnetSpeed: 560, lifetime: 26 },

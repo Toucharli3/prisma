@@ -14,7 +14,17 @@ npm install
 npm run dev      # serveur de dev (ouvre le navigateur)
 npm run build    # build de production -> dist/
 npm run preview  # prévisualise le build
+
+node tools/balance.mjs   # audit d'équilibrage chiffré (aucune dépendance)
+node tools/smoke.mjs URL # fumigation : joue une partie dans Chromium (npm i -D playwright)
 ```
+
+**`tools/balance.mjs` est l'outil à lancer après TOUTE retouche d'équilibrage.**
+Il importe `config.js` et la courbe de difficulté du jeu (jamais de recopie, donc
+pas de dérive possible) et sort quatre tableaux : DPS par arme (mono-cible et
+nuée, par niveau et évolution), valeur et plafond des upgrades, courbe de
+difficulté, puis une simulation de partie complète. Les seuils y sont explicites :
+écart entre armes ≤ ×2 par axe, mort visée entre 12 et 15 min.
 
 ## Stack
 
@@ -43,6 +53,12 @@ npm run preview  # prévisualise le build
   `weapons`, `backdrop`.
 - `src/scenes/` — `menu`, `game`, `upgrade`, `pause`, `gameover`, `options`.
 - `src/ui/` — `hud`, `widgets`, `nameInput`.
+- `tools/` — outils hors jeu : `balance` (audit d'équilibrage), `smoke` (fumigation).
+
+**Source unique de la difficulté** : `difficultyScales(time)` et `warmupFactor(time)`
+sont exportées par `systems/director.js` et utilisées par le directeur, les boss
+et l'outil d'audit. Ne jamais recopier ces formules ailleurs (elles l'étaient
+dans `boss.js`, où toute correction divergeait en silence).
 
 Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 

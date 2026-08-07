@@ -3,6 +3,7 @@
 
 import { CONFIG } from '../config.js';
 import { lerp, TAU } from '../engine/math.js';
+import { difficultyScales } from '../systems/director.js';
 
 function fire(b, w, ang, sp) {
   w.enemyBullets.obtain().init(b.x, b.y, Math.cos(ang) * sp, Math.sin(ang) * sp, { damage: b.bulletDamage, radius: 8, life: 3.4, pierce: 0, color: CONFIG.danger, hostile: true });
@@ -42,16 +43,12 @@ const PATTERNS = [
   },
   // 5 — RUCHE : pond 3 ennemis (scalés au temps) autour d'elle
   (b, w) => {
-    const d = CONFIG.director;
-    const m = w.time / 60;
-    const hpS = Math.pow(d.hpGrowPerMin, m);
-    const dmgS = 1 + d.dmgRatePerMin * Math.max(0, m - 0.5);
-    const spS = Math.min(d.speedCap, 1 + d.speedRatePerMin * m);
+    const sc = difficultyScales(w.time);
     const types = ['triangle', 'dasher', 'triangle'];
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * TAU + w.rng() * 2;
       const def = CONFIG.enemyTypes[types[i]];
-      w.enemies.obtain().init(def, b.x + Math.cos(a) * (b.radius + 30), b.y + Math.sin(a) * (b.radius + 30), hpS * 0.8, spS, dmgS);
+      w.enemies.obtain().init(def, b.x + Math.cos(a) * (b.radius + 30), b.y + Math.sin(a) * (b.radius + 30), sc.hp * 0.8, sc.speed, sc.dmg);
     }
   },
 ];

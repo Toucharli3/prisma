@@ -5,9 +5,16 @@
 import { CONFIG } from '../config.js';
 
 // Upgrades de statistiques (répétables sauf condition `avail`).
+//
+// Les multiplicateurs sont ADDITIFS SUR LA BASE (`+= 0.25` sur une valeur qui
+// part de 1), pas composés (`*= 1.25`). C'est le choix d'équilibrage central :
+// en composé, 45 montées de niveau donnaient ×3500 de dégâts et le joueur
+// n'était plus jamais limité par sa puissance de feu — l'arène restait vide et
+// la partie n'avait plus d'enjeu. En additif la puissance converge, la menace
+// reste lisible, et la difficulté se règle par la courbe (systems/director.js).
 const STAT = [
-  { id: 'dmg', name: 'Surcharge', desc: '+25% dégâts', color: '#ff4d00', apply: (w) => (w.player.mods.damageMul *= 1.25) },
-  { id: 'rate', name: 'Cadence', desc: '+18% cadence de tir', color: '#ff8a00', apply: (w) => (w.player.mods.rateMul *= 1.18) },
+  { id: 'dmg', name: 'Surcharge', desc: '+25% dégâts', color: '#ff4d00', apply: (w) => (w.player.mods.damageMul += 0.25) },
+  { id: 'rate', name: 'Cadence', desc: '+18% cadence de tir', color: '#ff8a00', apply: (w) => (w.player.mods.rateMul += 0.18) },
   {
     id: 'proj',
     name: 'Multi-tir',
@@ -17,9 +24,9 @@ const STAT = [
     avail: (w) => w.player.mods.projAdd < 4,
     apply: (w) => (w.player.mods.projAdd += 1),
   },
-  { id: 'move', name: 'Célérité', desc: '+12% vitesse de déplacement', color: '#00e5ff', apply: (w) => (w.player.mods.moveMul *= 1.12) },
-  { id: 'collect', name: 'Aimant', desc: '+35% rayon de collecte', color: '#18ffd5', apply: (w) => (w.player.mods.collectMul *= 1.35) },
-  { id: 'area', name: 'Amplitude', desc: "+20% zone d'effet", color: '#b14dff', apply: (w) => (w.player.mods.areaMul *= 1.2) },
+  { id: 'move', name: 'Célérité', desc: '+12% vitesse de déplacement', color: '#00e5ff', avail: (w) => w.player.mods.moveMul < 1.85, apply: (w) => (w.player.mods.moveMul += 0.12) },
+  { id: 'collect', name: 'Aimant', desc: '+35% rayon de collecte', color: '#18ffd5', avail: (w) => w.player.mods.collectMul < 3, apply: (w) => (w.player.mods.collectMul += 0.35) },
+  { id: 'area', name: 'Amplitude', desc: "+20% zone d'effet", color: '#b14dff', avail: (w) => w.player.mods.areaMul < 2.4, apply: (w) => (w.player.mods.areaMul += 0.2) },
   {
     id: 'maxhp',
     name: 'Vitalité',
@@ -39,8 +46,11 @@ const STAT = [
     avail: (w) => w.player.hp < w.player.maxHp,
     apply: (w) => (w.player.hp = Math.min(w.player.maxHp, w.player.hp + 45)),
   },
-  { id: 'armor', name: 'Armure', desc: '−12% dégâts subis', color: '#8af0ff', apply: (w) => (w.player.mods.dmgTakenMul *= 0.88) },
-  { id: 'regen', name: 'Photosynthèse', desc: '+1.5 PV/s de régénération', color: '#00d97e', apply: (w) => (w.player.mods.regenBonus += 1.5) },
+  // Armure et régénération sont PLAFONNÉES : empilées sans limite, elles se
+  // multipliaient l'une l'autre (dégâts subis → 0 pendant que les PV/s montent)
+  // et rendaient le joueur intuable une fois la courbe de dégâts dépassée.
+  { id: 'armor', name: 'Armure', desc: '−12% dégâts subis', color: '#8af0ff', avail: (w) => w.player.mods.dmgTakenMul > 0.45, apply: (w) => (w.player.mods.dmgTakenMul *= 0.88) },
+  { id: 'regen', name: 'Photosynthèse', desc: '+1.5 PV/s de régénération', color: '#00d97e', avail: (w) => w.player.mods.regenBonus < 7, apply: (w) => (w.player.mods.regenBonus += 1.5) },
   {
     id: 'reflex',
     name: 'Réflexe',
@@ -58,7 +68,7 @@ const STAT = [
     weight: 0.35,
     avail: (w) => w.player.maxHp > 70,
     apply: (w) => {
-      w.player.mods.damageMul *= 1.4;
+      w.player.mods.damageMul += 0.4;
       w.player.maxHp = Math.max(40, w.player.maxHp - 25);
       w.player.hp = Math.min(w.player.hp, w.player.maxHp);
     },

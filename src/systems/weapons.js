@@ -241,6 +241,7 @@ export function createWeapons(world) {
       if (evo.chainRange) w.chainRange *= evo.chainRange;
       if (evo.beamCount) w.beamCount = evo.beamCount;
       if (evo.beamWidth) w.beamWidth = (w.beamWidth || 18) * evo.beamWidth;
+      if (evo.beamLength) w.beamLength = (w.beamLength || 520) * evo.beamLength;
     },
 
     update(dt) {

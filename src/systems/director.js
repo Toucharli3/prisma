@@ -16,6 +16,36 @@ function ringPos(player, dist, rng) {
   };
 }
 
+// Courbe de difficulté — SOURCE UNIQUE (le directeur ET les boss l'utilisent ;
+// elle était dupliquée dans boss.js, où toute correction divergeait en silence).
+//
+// Les PV suivent une LOI DE PUISSANCE, pas une exponentielle, et c'est le point
+// central de l'équilibrage. La puissance du joueur est polynomiale dans le temps
+// (ses cartes sont exponentielles dans le NIVEAU, mais les niveaux arrivent de
+// plus en plus lentement — la courbe d'XP est elle-même exponentielle). Opposer
+// une exponentielle à un polynôme garantit un décrochage brutal : le joueur est
+// d'abord ridiculement surpuissant, puis le mur tombe d'un coup. Une loi de
+// puissance monte plus vite au début et plus doucement à la fin — elle suit.
+export function difficultyScales(time) {
+  const d = CONFIG.director;
+  const m = time / 60;
+  return {
+    hp: Math.pow(1 + m / d.hpHalfLife, d.hpExp),
+    // Démarrage en douceur : la montée des dégâts commence après 30 s.
+    dmg: 1 + d.dmgRatePerMin * Math.max(0, m - 0.5),
+    speed: Math.min(d.speedCap, 1 + d.speedRatePerMin * m),
+  };
+}
+
+// Montée en régime des spawns. À pleine cadence dès la seconde 0, le joueur est
+// submergé avant d'avoir un seul niveau : la difficulté doit démarrer basse même
+// si la courbe de PV, elle, part de ×1. Exporté pour que l'outil d'audit mesure
+// exactement la même chose que le jeu.
+export function warmupFactor(time) {
+  const d = CONFIG.director;
+  return Math.min(1, d.warmupStart + (1 - d.warmupStart) * (time / 60 / d.warmupMin));
+}
+
 export function createDirector() {
   return {
     tier: 0,
@@ -49,18 +79,8 @@ export function createDirector() {
       return this._typesCache;
     },
 
-    // Multiplicateurs de difficulté pilotés par le TEMPS (m = minutes).
-    // PV exponentiels (suivent la puissance multiplicative du joueur),
-    // dégâts linéaires (ce qui finit par tuer une fois encerclé).
     scales(world) {
-      const d = CONFIG.director;
-      const m = (world ? world.time : 0) / 60;
-      return {
-        hp: Math.pow(d.hpGrowPerMin, m),
-        // Démarrage en douceur : la montée des dégâts commence après 30 s.
-        dmg: 1 + d.dmgRatePerMin * Math.max(0, m - 0.5),
-        speed: Math.min(d.speedCap, 1 + d.speedRatePerMin * m),
-      };
+      return difficultyScales(world ? world.time : 0);
     },
 
     update(dt, world) {
@@ -103,7 +123,7 @@ export function createDirector() {
         interval = d.breatherInterval; // respiration : presque rien
         batch = 1;
       }
-      this.spawnTimer = interval / (1 + d.intervalTightenPerMin * m);
+      this.spawnTimer = interval / ((1 + d.intervalTightenPerMin * m) * warmupFactor(world.time));
 
       const types = this.availableTypes();
       const sc = this.scales(world);
