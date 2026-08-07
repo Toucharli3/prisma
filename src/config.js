@@ -394,14 +394,46 @@ export const CONFIG = {
   // Calibrées à ×1.8-2.2 sur l'axe de l'arme. L'ancienne évolution de l'Éclat
   // cumulait cadence ×2 + 2 projectiles + dégâts ×1.3, soit ×4.3 en nuée d'un
   // seul coup — l'arme de départ devenait la meilleure du jeu sur les DEUX axes.
+  // `req` = SYNERGIE : passif exigé en plus du niveau max de l'arme. Sans lui,
+  // l'évolution tombait toute seule et le build n'était qu'une accumulation ;
+  // avec, chaque arme oriente les cartes de stats à prendre. Le passif choisi
+  // est toujours celui qui a du sens pour l'arme (`hint` sert à l'afficher).
   evolutions: {
-    eclat: { name: 'Mitraille prismatique', desc: 'Cadence +40% · +1 projectile', cooldown: 0.72, countAdd: 1, damage: 1.25 },
-    onde: { name: 'Raz-de-marée', desc: 'Transperce tout · onde géante', pierceSet: 999, bulletRadius: 1.9, damage: 1.5, speed: 1.2 },
-    orbital: { name: 'Constellation', desc: '+1 orbe · rotation rapide', countAdd: 1, rotSpeed: 1.15, nodeRadius: 1.4, damage: 1.25 },
-    nova: { name: 'Supernova', desc: 'Zone ×1.7 · dégâts ×1.6', radius: 1.7, damage: 1.6, cooldown: 0.85 },
-    foudre: { name: 'Tempête', desc: '+3 rebonds · portée ×1.4', chainAdd: 3, chainRange: 1.4, damage: 1.4, cooldown: 0.8 },
-    faisceau: { name: 'Lance perforante', desc: 'Dégâts ×1.8 · rayon élargi', damage: 1.8, beamWidth: 1.6, beamLength: 1.4 },
-    scie: { name: 'Orbite folle', desc: '+2 scies · dégâts ×1.5', countAdd: 2, damage: 1.5 },
+    eclat: {
+      name: 'Mitraille prismatique', desc: 'Cadence +40% · +1 projectile',
+      req: (w) => w.player.mods.projAdd >= 2, hint: 'Multi-tir ×2',
+      cooldown: 0.72, countAdd: 1, damage: 1.25,
+    },
+    onde: {
+      name: 'Raz-de-marée', desc: 'Transperce tout · onde géante',
+      req: (w) => w.player.mods.areaMul >= 1.4, hint: 'Amplitude ×2',
+      pierceSet: 999, bulletRadius: 1.9, damage: 1.5, speed: 1.2,
+    },
+    orbital: {
+      name: 'Constellation', desc: '+1 orbe · rotation rapide',
+      req: (w) => w.player.mods.moveMul >= 1.24, hint: 'Célérité ×2',
+      countAdd: 1, rotSpeed: 1.15, nodeRadius: 1.4, damage: 1.25,
+    },
+    nova: {
+      name: 'Supernova', desc: 'Zone ×1.7 · dégâts ×1.6',
+      req: (w) => w.player.mods.areaMul >= 1.6, hint: 'Amplitude ×3',
+      radius: 1.7, damage: 1.6, cooldown: 0.85,
+    },
+    foudre: {
+      name: 'Tempête', desc: '+3 rebonds · portée ×1.4',
+      req: (w) => w.player.mods.rateMul >= 1.54, hint: 'Cadence ×3',
+      chainAdd: 3, chainRange: 1.4, damage: 1.4, cooldown: 0.8,
+    },
+    faisceau: {
+      name: 'Lance perforante', desc: 'Dégâts ×1.8 · rayon élargi',
+      req: (w) => w.player.mods.damageMul >= 1.75, hint: 'Surcharge ×3',
+      damage: 1.8, beamWidth: 1.6, beamLength: 1.4,
+    },
+    scie: {
+      name: 'Orbite folle', desc: '+2 scies · dégâts ×1.5',
+      req: (w) => w.player.mods.collectMul >= 1.7, hint: 'Aimant ×2',
+      countAdd: 2, damage: 1.5,
+    },
   },
   bulletMax: 420,
 

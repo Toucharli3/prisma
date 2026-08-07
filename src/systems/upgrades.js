@@ -163,7 +163,8 @@ export function rollChoices(world, n = 3) {
   for (const wp of world.weapons.list) {
     if (wp.level >= CONFIG.maxWeaponLevel) {
       const evo = CONFIG.evolutions[wp.key];
-      if (evo && !wp.evolved) {
+      // SYNERGIE : le niveau max ne suffit plus, le passif associé est exigé.
+      if (evo && !wp.evolved && (!evo.req || evo.req(world))) {
         cand.push({
           id: 'evo_' + wp.key,
           name: '★ ' + evo.name,

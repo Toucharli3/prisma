@@ -212,6 +212,7 @@ function sectionCurve() {
 //   - Le DPS retenu est celui « de nuée » : on suppose le joueur au contact.
 const DODGE = 0.62; // 62% des contacts potentiels évités (bon joueur)
 const CROWD = 0.045; // taux de contact par ennemi vivant et par seconde
+const SYNERGY_COST = 2; // prises consacrées au passif exigé par l'évolution
 
 function sectionSim() {
   const d = CONFIG.director;
@@ -245,6 +246,7 @@ function sectionSim() {
   let dmgTaken = 1;
   let regen = s.regen;
   let picks = 0;
+  let synergyPicks = 0;
   const build = [{ key: 'eclat', level: 1, evolved: false }];
 
   let engaged = 0; // ennemis arrivés au contact (ceux qui menacent vraiment)
@@ -267,7 +269,16 @@ function sectionSim() {
     picks++;
     const primary = build[0];
     if (primary.level < maxLv) return primary.level++;
-    if (!primary.evolved) return (primary.evolved = true);
+    // SYNERGIE : l'évolution exige aussi un passif (CONFIG.evolutions[].req).
+    // On modélise ce coût par les prises qu'il faut y consacrer — sans lui, la
+    // simulation surestimerait la puissance du joueur de plusieurs niveaux.
+    if (!primary.evolved) {
+      if (synergyPicks < SYNERGY_COST) {
+        synergyPicks++;
+        return (damageMul += 0.25); // le passif exigé a lui-même une valeur
+      }
+      return (primary.evolved = true);
+    }
     const slot = picks % 4;
     if (slot === 0 && build.length < order.length) return build.push({ key: order[build.length], level: 1, evolved: false });
     if (slot === 1) {

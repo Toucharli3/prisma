@@ -159,11 +159,16 @@ function drawStatsCard(ctx, vw, vh, world) {
     ["Zone d'effet", '×' + m.areaMul.toFixed(2), '#c46dff'],
     ['Collecte', '×' + m.collectMul.toFixed(2), '#4dffd0'],
   ];
+  // Armes au niveau max pas encore évoluées : on affiche le passif qu'il reste
+  // à obtenir, sinon la synergie serait invisible — donc juste frustrante.
+  const pending = world.weapons.list.filter((w) => w.level >= CONFIG.maxWeaponLevel && !w.evolved && CONFIG.evolutions[w.key]).slice(0, 3);
+
   const cw = 226;
   const cx = vw - 12 - cw;
   const rowH = 16;
   const headH = 18;
-  const ch = 12 + headH + rows.length * rowH + 16 + 34 + 26 + 10; // head+rows+ARMES+2 lignes chips+PV
+  // head + stats + ARMES + 2 lignes de pastilles + synergies + PV
+  const ch = 12 + headH + rows.length * rowH + 16 + 34 + (pending.length ? 6 + pending.length * 14 : 0) + 26 + 10;
   const cy = vh - 12 - ch;
 
   ctx.fillStyle = 'rgba(12,12,22,0.66)';
@@ -216,6 +221,21 @@ function drawStatsCard(ctx, vw, vh, world) {
     ctx.textAlign = 'left';
     ctx.fillText(t, chx + 6, yy);
     chx += wdt + 5;
+  }
+
+  // Synergies : ★ doré = évolution débloquée au prochain niveau, ○ gris = il
+  // manque encore le passif indiqué.
+  if (pending.length) {
+    yy += 20;
+    ctx.font = `700 10px ${FONT}`;
+    ctx.textAlign = 'left';
+    for (const wp of pending) {
+      const evo = CONFIG.evolutions[wp.key];
+      const ok = !evo.req || evo.req(world);
+      ctx.fillStyle = ok ? '#ffd700' : 'rgba(175,175,200,0.55)';
+      ctx.fillText(`${ok ? '★' : '○'} ${evo.name} · ${evo.hint || ''}`, cx + 12, yy);
+      yy += 14;
+    }
   }
 
   // Barre de PV en bas de la carte.
