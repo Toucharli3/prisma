@@ -30,6 +30,65 @@ export const CONFIG = {
   // « nettoyer » le paquet pour faire remonter les cartes de son build.
   picks: { rerolls: 3, banishes: 2 },
 
+  // --- PERSONNAGES ---
+  // Chacun change l'arme de départ ET les stats de base, donc la façon de
+  // jouer : le Prisme est l'étalon, les autres poussent un axe au prix d'un
+  // autre. `mods` multiplie les stats de départ, `stats` les remplace.
+  // `unlock` suit le même format que les skins (voir engine/save.js).
+  characters: [
+    {
+      id: 'prisme',
+      name: 'Le Prisme',
+      tagline: 'Équilibré — la référence',
+      weapon: 'eclat',
+      color: '#00e5ff',
+      shape: 'orb',
+      mods: {},
+      unlock: { type: 'start' },
+    },
+    {
+      id: 'lentille',
+      name: 'La Lentille',
+      tagline: 'Tueuse de boss — fragile',
+      weapon: 'faisceau',
+      color: '#ff4dd2',
+      shape: 'prism',
+      // Gros dégâts, peu de PV : il faut ne pas se faire toucher.
+      mods: { damageMul: 1.25, maxHp: 0.72, moveMul: 1.06 },
+      unlock: { type: 'bossKills', value: 3, label: '3 boss vaincus' },
+    },
+    {
+      id: 'halo',
+      name: 'Le Halo',
+      tagline: 'Défensif — encaisse et régénère',
+      weapon: 'orbital',
+      color: '#b14dff',
+      shape: 'ring',
+      mods: { maxHp: 1.4, regenBonus: 1.5, damageMul: 0.85, moveMul: 0.94 },
+      unlock: { type: 'surviveMin', value: 8, label: 'survivre 8 minutes' },
+    },
+    {
+      id: 'nuee',
+      name: 'La Nuée',
+      tagline: 'Nettoyeuse de foule — mono-cible faible',
+      weapon: 'nova',
+      color: '#b6ff3c',
+      shape: 'star',
+      mods: { areaMul: 1.25, collectMul: 1.4, damageMul: 0.88 },
+      unlock: { type: 'combo', value: 120, label: 'combo ×120' },
+    },
+    {
+      id: 'eclair',
+      name: "L'Éclair",
+      tagline: 'Rapide et nerveuse — cadence, peu de PV',
+      weapon: 'foudre',
+      color: '#ffd000',
+      shape: 'hex',
+      mods: { rateMul: 1.3, moveMul: 1.18, maxHp: 0.8, dashCdMul: 0.7 },
+      unlock: { type: 'score', value: 60000, label: '60 000 points' },
+    },
+  ],
+
   // Chaîne GPU (engine/postfx.js). Quand WebGL2 est disponible, elle REMPLACE
   // le bloom Canvas 2D ci-dessus ainsi que la vignette et les scanlines : le
   // seuil y est calculé sur la luminance (et non canal par canal), ce qui

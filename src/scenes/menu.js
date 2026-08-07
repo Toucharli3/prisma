@@ -8,7 +8,7 @@ import { Save } from '../engine/save.js';
 import { Leaderboard } from '../engine/leaderboard.js';
 import { createNameInput } from '../ui/nameInput.js';
 import { CONFIG, PALETTES } from '../config.js';
-import { TAU } from '../engine/math.js';
+import { TAU, fmtInt } from '../engine/math.js';
 import { buildBackdrop } from '../systems/backdrop.js';
 import { createOptionsOverlay } from './options.js';
 import { FONT, FONT_TITLE } from '../ui/fonts.js';
@@ -62,6 +62,16 @@ export function createMenuScene() {
         return;
       }
       if (nameInput) nameInput.show();
+      // Choix du personnage (flèches gauche/droite). Le champ pseudo avale ses
+      // propres touches, donc pas de conflit quand il a le focus.
+      if (Input.pressed('ArrowLeft')) {
+        Save.cycleCharacter(-1);
+        Audio.uiMove();
+      }
+      if (Input.pressed('ArrowRight')) {
+        Save.cycleCharacter(1);
+        Audio.uiMove();
+      }
       if (Input.pressed('KeyO')) {
         Audio.uiSelect();
         options = createOptionsOverlay(() => (options = null));
@@ -117,21 +127,43 @@ export function createMenuScene() {
       // Champ pseudo (DOM) positionné ici.
       if (nameInput && !options) nameInput.position(vw / 2, vh * 0.39, Math.min(300, vw * 0.5));
 
+      // --- Sélecteur de personnage ---
+      const chr = Save.getCharacter();
+      const nUnlocked = Save.unlockedCharacters().length;
+      const cy = vh * 0.5; // sous le champ pseudo (qui occupe ~44 px sous 0.39)
+      ctx.font = `700 22px ${FONT}`;
+      const nameW = ctx.measureText(chr.name).width;
+      ctx.fillStyle = chr.color;
+      ctx.fillText(chr.name, vw / 2, cy);
+      // Chevrons : seulement s'il y a plusieurs personnages à parcourir.
+      if (nUnlocked > 1) {
+        ctx.fillStyle = `rgba(232,232,255,${0.35 + 0.35 * Math.sin(t * 4)})`;
+        ctx.font = `700 20px ${FONT}`;
+        ctx.fillText('‹', vw / 2 - nameW / 2 - 26, cy);
+        ctx.fillText('›', vw / 2 + nameW / 2 + 26, cy);
+      }
+      ctx.fillStyle = CONFIG.textSecondary;
+      ctx.font = `600 13px ${FONT}`;
+      ctx.fillText(`${chr.tagline}   ·   arme : ${CONFIG.weapons[chr.weapon].name}`, vw / 2, cy + 22);
+      ctx.font = `600 11px ${FONT}`;
+      ctx.fillStyle = 'rgba(180,180,210,0.6)';
+      ctx.fillText(nUnlocked < CONFIG.characters.length ? `← → changer   ·   ${nUnlocked}/${CONFIG.characters.length} débloqués` : '← → changer', vw / 2, cy + 40);
+
       // Invite.
       const blink = 0.55 + 0.45 * Math.sin(t * 3);
       ctx.fillStyle = `rgba(232,232,255,${blink})`;
       ctx.font = `700 21px ${FONT}`;
-      ctx.fillText('Entrée / clic pour commencer', vw / 2, vh * 0.49);
+      ctx.fillText('Entrée / clic pour commencer', vw / 2, vh * 0.59);
 
       if (Save.data.highScore > 0) {
         ctx.fillStyle = CONFIG.textSecondary;
         ctx.font = `600 14px ${FONT}`;
-        ctx.fillText(`Ton record : ${Save.data.highScore}   ·   Biome max : ${Save.data.furthestBiome}`, vw / 2, vh * 0.545);
+        ctx.fillText(`Ton record : ${fmtInt(Save.data.highScore)}   ·   Biome max : ${Save.data.furthestBiome}`, vw / 2, vh * 0.635);
       }
 
       // Classement.
       const lx = vw / 2;
-      const ly = vh * 0.62;
+      const ly = vh * 0.705;
       ctx.fillStyle = CONFIG.textPrimary;
       ctx.font = `800 18px ${FONT}`;
       ctx.fillText('CLASSEMENT', lx, ly);

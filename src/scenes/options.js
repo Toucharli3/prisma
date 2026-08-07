@@ -35,6 +35,7 @@ export function createOptionsOverlay(onClose, onQuitMenu) {
     { label: 'Volume musique', bar: () => Audio.musicVol, value: () => `${Math.round(Audio.musicVol * 100)}%`, change: (d) => Audio.setMusicVol(clamp(Audio.musicVol + d * 0.1, 0, 1)) },
     { label: 'Volume effets', bar: () => Audio.sfxVol, value: () => `${Math.round(Audio.sfxVol * 100)}%`, change: (d) => Audio.setSfxVol(clamp(Audio.sfxVol + d * 0.1, 0, 1)) },
     { label: 'Son', value: () => (Audio.muted ? 'Muet' : 'Activé'), change: () => Audio.toggleMute() },
+    { label: 'Personnage', value: () => `${Save.getCharacter().name} · ${Save.unlockedCharacters().length}/${CONFIG.characters.length}`, change: (d) => Save.cycleCharacter(d) },
     { label: 'Skin', value: () => `${Save.getSkin().name} · ${Save.unlockedSkins().length}/${CONFIG.skins.length}`, change: (d) => Save.cycleSkin(d) },
   ];
   if (onQuitMenu) items.push({ label: 'Quitter vers le menu', action: onQuitMenu, danger: true });

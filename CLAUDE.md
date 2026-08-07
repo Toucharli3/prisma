@@ -119,9 +119,24 @@ Les scènes implémentent `enter / update(dt) / render(ctx, alpha) / exit`.
 - Déplacement : **ZQSD / WASD / flèches** · tir **automatique** (ou visée souris en option)
 - **Espace / Shift** : dash (i-frames) · **E** : bombe de couleur · **R** : PRISMA BURST (jauge pleine)
 - **P / Échap** : pause · **O** : options · **M** : muet · **F3** : overlay debug (FPS)
-- Menus : **flèches / 1-2-3 / Entrée / clic**
+- Menus : **flèches / 1-2-3 / Entrée / clic** · menu principal : **← →** choisit le personnage
+- Écran de niveau : **R** relance la main · **X** bannit la carte visée (définitif)
 - **Manette** : stick gauche = bouger · A/RB = dash + valider · B = bombe ·
   X = burst · Start = pause (mapping dans `engine/input.js`, `pollGamepad`)
+
+## Build : les trois leviers de rejouabilité
+
+- **Relance / bannissement** (`CONFIG.picks`) : 3 relances et 2 bannissements par
+  partie. Bannir retire la carte du tirage pour TOUTE la partie — c'est ce qui
+  permet de nettoyer le paquet et de faire remonter les cartes de son build.
+- **Synergies** (`CONFIG.evolutions[].req`) : une évolution exige le niveau max
+  de l'arme ET un passif. Le panneau ÉQUIPEMENT affiche ce qu'il manque (★ doré
+  = prêt, ○ gris = passif à obtenir) — sans cet affichage la condition serait
+  invisible, donc frustrante.
+- **Personnages** (`CONFIG.characters`) : arme de départ + stats de base, ce qui
+  change la façon de jouer. Débloqués par accomplissement, même mécanique que
+  les skins (`engine/save.js`). Le personnage est appliqué avant le skin, qui
+  ne touche qu'à l'apparence.
 
 ## Comment étendre (data-driven)
 

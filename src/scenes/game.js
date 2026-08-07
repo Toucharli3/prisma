@@ -727,12 +727,32 @@ export function createGameScene() {
     enter(_app) {
       app = _app;
       player.reset(CONFIG.arena.width / 2, CONFIG.arena.height / 2);
+
+      // PERSONNAGE : arme de départ + stats de base. Appliqué AVANT le skin,
+      // qui ne touche qu'à l'apparence et peut donc surcharger les couleurs.
+      const chr = Save.getCharacter();
+      const cm = chr.mods || {};
+      if (cm.maxHp) {
+        player.maxHp = Math.round(player.maxHp * cm.maxHp);
+        player.hp = player.maxHp;
+      }
+      for (const k of ['damageMul', 'rateMul', 'moveMul', 'areaMul', 'collectMul', 'dashCdMul']) {
+        if (cm[k]) player.mods[k] *= cm[k];
+      }
+      if (cm.regenBonus) player.mods.regenBonus += cm.regenBonus;
+      player.coreColor = chr.color;
+      player.glowColor = chr.color;
+      player.shape = chr.shape || 'orb';
+      world.character = chr;
+
       const skin = Save.getSkin();
-      player.coreColor = skin.core;
-      player.glowColor = skin.glow;
-      player.shape = skin.shape || 'orb';
+      if (skin && skin.id !== 'etincelle') {
+        player.coreColor = skin.core;
+        player.glowColor = skin.glow;
+        player.shape = skin.shape || player.shape;
+      }
       weapons.reset();
-      weapons.add('eclat');
+      weapons.add(chr.weapon || 'eclat');
       enemies.clear();
       bullets.clear();
       enemyBullets.clear();

@@ -29,6 +29,8 @@ function skinUnlocked(unlock, stats) {
 const DEFAULTS = () => ({
   name: '',
   skin: 'etincelle',
+  character: 'prisme',
+  charsUnlocked: [],
   highScore: 0,
   bestCombo: 0,
   runs: 0,
@@ -112,6 +114,14 @@ export const Save = {
         newlyUnlocked.push(`Skin « ${s.name} » (${s.unlock.label})`);
       }
     }
+    // … et personnages (mêmes conditions, même évaluateur).
+    for (const c of CONFIG.characters) {
+      if (c.unlock.type === 'start' || d.charsUnlocked.includes(c.id)) continue;
+      if (skinUnlocked(c.unlock, stats)) {
+        d.charsUnlocked.push(c.id);
+        newlyUnlocked.push(`Personnage « ${c.name} » (${c.unlock.label})`);
+      }
+    }
     this.persist();
     return { newHighScore: newHigh, newlyUnlocked };
   },
@@ -132,6 +142,26 @@ export const Save = {
     this.data.skin = id;
     this.persist();
   },
+  // --- Personnages ---
+  unlockedCharacters() {
+    return CONFIG.characters.filter((c) => c.unlock.type === 'start' || this.data.charsUnlocked.includes(c.id));
+  },
+  getCharacter() {
+    const list = this.unlockedCharacters();
+    return list.find((c) => c.id === this.data.character) || list[0] || CONFIG.characters[0];
+  },
+  setCharacter(id) {
+    this.data.character = id;
+    this.persist();
+  },
+  cycleCharacter(dir) {
+    const list = this.unlockedCharacters();
+    let i = list.findIndex((c) => c.id === this.data.character);
+    if (i < 0) i = 0;
+    i = (i + dir + list.length) % list.length;
+    this.setCharacter(list[i].id);
+  },
+
   cycleSkin(dir) {
     const list = this.unlockedSkins();
     let i = list.findIndex((k) => k.id === this.data.skin);
