@@ -28,11 +28,11 @@ import { renderPause } from './pause.js';
 import { createOptionsOverlay } from './options.js';
 import { drawHud } from '../ui/hud.js';
 import { fillBar } from '../ui/widgets.js';
+import { FONT } from '../ui/fonts.js';
 
 const SEPARATION_WEIGHT = 0.7;
 const QUERY_PAD = 32;
 const ORBITAL_HIT_CD = 0.35;
-const FONT = '"Segoe UI", system-ui, sans-serif';
 const xpForLevel = (level) => Math.round(CONFIG.xp.base * Math.pow(CONFIG.xp.growth, level - 1));
 
 export function createGameScene() {
@@ -776,6 +776,7 @@ export function createGameScene() {
 
     render(alpha) {
       drawWorld(alpha);
+      Render.bloom(); // après le monde, avant le HUD (sinon le texte bave)
 
       if (mode === 'levelup') {
         const ctx = Render.ctx;

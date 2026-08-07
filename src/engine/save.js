@@ -35,7 +35,7 @@ const DEFAULTS = () => ({
   wins: 0,
   furthestBiome: 1,
   unlocked: [],
-  settings: { aimMode: 'auto', perf: false, music: 0.45, sfx: 0.6, muted: false },
+  settings: { aimMode: 'auto', perf: false, bloom: true, music: 0.45, sfx: 0.6, muted: false },
 });
 
 export const Save = {
@@ -69,6 +69,7 @@ export const Save = {
     const s = this.data.settings;
     CONFIG.aimMode = s.aimMode;
     CONFIG.perf = s.perf;
+    CONFIG.bloom.enabled = s.bloom !== false;
     Audio.setMusicVol(s.music);
     Audio.setSfxVol(s.sfx);
     Audio.setMuted(s.muted);
@@ -79,6 +80,7 @@ export const Save = {
     this.data.settings = {
       aimMode: CONFIG.aimMode,
       perf: CONFIG.perf,
+      bloom: CONFIG.bloom.enabled,
       music: Audio.musicVol,
       sfx: Audio.sfxVol,
       muted: Audio.muted,

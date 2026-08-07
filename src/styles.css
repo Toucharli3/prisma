@@ -1,3 +1,27 @@
+/* Polices auto-hébergées (sous-ensemble latin) : aucune requête vers un tiers,
+   le jeu reste jouable hors-ligne. Orbitron = titres, Rajdhani = interface. */
+@font-face {
+  font-family: "Orbitron";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block; /* block : Canvas 2D ne re-dessine pas au swap */
+  src: url("./fonts/orbitron-900.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 600;
+  font-display: block;
+  src: url("./fonts/rajdhani-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Rajdhani";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("./fonts/rajdhani-700.woff2") format("woff2");
+}
+
 * {
   margin: 0;
   padding: 0;

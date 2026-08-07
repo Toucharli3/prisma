@@ -7,6 +7,16 @@ export const CONFIG = {
   perf: false, // mode performance : réduit particules, désactive scanlines/floaters
   maxDPR: 1.5, // plafond devicePixelRatio (évite le sur-rendu HiDPI sur GPU intégré)
 
+  // Bloom plein écran (postprocess Canvas 2D pur, aucun WebGL, aucune lib).
+  // C'est CE qui fait qu'un jeu néon a l'air néon : les halos pré-rendus par
+  // sprite ne donnent qu'une lueur locale, le bloom fait déborder la lumière
+  // sur toute l'image. Coût : deux blits sur des tampons réduits (1/4 puis 1/8).
+  // thresholdPasses : nombre de multiplications de l'image par elle-même avant
+  // le flou. 1 passe (couleur²) laissait le champ de couleur — une grande zone
+  // diffuse et saturée — déborder et noyer toute l'image. 2 passes (couleur⁴)
+  // écrasent le diffus et ne gardent que les sources vraiment vives.
+  bloom: { enabled: true, strength: 0.26, thresholdPasses: 2 },
+
   // --- Juice / options ---
   maxShake: 24, // amplitude max du screen shake (px)
   comboWindow: 2.4, // délai (s) avant reset du combo

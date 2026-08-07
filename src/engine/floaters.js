@@ -1,6 +1,8 @@
 // floaters.js — chiffres de dégâts flottants (poolés, ring buffer plafonné).
 // Rendus en espace monde, au-dessus des entités.
 
+import { FONT } from '../ui/fonts.js';
+
 export class Floaters {
   constructor(max) {
     this.max = max;
@@ -57,7 +59,7 @@ export class Floaters {
       if (!this.alive[i]) continue;
       const t = this.life[i] / this.maxLife[i];
       ctx.globalAlpha = Math.min(1, t * 1.6);
-      ctx.font = `800 ${this.size[i]}px "Segoe UI", system-ui, sans-serif`;
+      ctx.font = `800 ${this.size[i]}px ${FONT}`;
       ctx.fillStyle = this.color[i];
       ctx.fillText(this.text[i], this.x[i], this.y[i]);
     }

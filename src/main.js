@@ -2,6 +2,11 @@
 // et boucle de jeu. Les scènes gèrent elles-mêmes Render.begin()/end() afin de
 // pouvoir positionner la caméra (avec interpolation) avant l'ouverture de frame.
 
+// La feuille de style est importée ici (et non liée depuis index.html) pour que
+// Vite la traite comme un module : c'est ce qui lui permet de résoudre, hacher
+// et re-baser les polices woff2 référencées en url() — indispensable pour un
+// déploiement dans un sous-chemin comme GitHub Pages.
+import './styles.css';
 import { CONFIG } from './config.js';
 import { Render } from './engine/render.js';
 import { Input } from './engine/input.js';
@@ -11,6 +16,7 @@ import { createLoop } from './engine/loop.js';
 import { createMenuScene } from './scenes/menu.js';
 import { createGameScene } from './scenes/game.js';
 import { createGameOverScene } from './scenes/gameover.js';
+import { waitForFonts } from './ui/fonts.js';
 
 const canvas = document.getElementById('game');
 Render.init(canvas);
@@ -64,9 +70,11 @@ app.gotoMenu = () => app.setScene(createMenuScene());
 app.startGame = (opts) => app.setScene(createGameScene(opts));
 app.gameOver = (stats) => app.setScene(createGameOverScene(stats));
 
-// Démarre sur le menu principal.
+// Démarre sur le menu principal. On attend les polices AVANT la première frame :
+// Canvas 2D ne re-dessine pas quand une police finit de charger, il aurait donc
+// gardé le repli système jusqu'au prochain changement d'écran.
 app.gotoMenu();
-loop.start();
+waitForFonts().then(() => loop.start());
 
 // Handle d'inspection (jeu local solo) : utile pour tests/réglages. F3 affiche l'overlay.
 window.__prisma = app;

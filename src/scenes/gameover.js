@@ -8,8 +8,8 @@ import { Save } from '../engine/save.js';
 import { Leaderboard } from '../engine/leaderboard.js';
 import { CONFIG } from '../config.js';
 import { fmtInt } from '../engine/math.js';
+import { FONT, FONT_TITLE } from '../ui/fonts.js';
 
-const FONT = '"Segoe UI", system-ui, sans-serif';
 
 export function createGameOverScene(stats = {}) {
   let app = null;
@@ -56,7 +56,7 @@ export function createGameOverScene(stats = {}) {
       ctx.textBaseline = 'middle';
 
       ctx.fillStyle = CONFIG.danger;
-      ctx.font = `800 54px ${FONT}`;
+      ctx.font = `900 50px ${FONT_TITLE}`;
       ctx.fillText('GAME OVER', vw / 2, vh * 0.16);
 
       ctx.fillStyle = CONFIG.textPrimary;

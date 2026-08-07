@@ -11,8 +11,8 @@ import { CONFIG, PALETTES } from '../config.js';
 import { TAU } from '../engine/math.js';
 import { buildBackdrop } from '../systems/backdrop.js';
 import { createOptionsOverlay } from './options.js';
+import { FONT, FONT_TITLE } from '../ui/fonts.js';
 
-const FONT = '"Segoe UI", system-ui, sans-serif';
 const FLAT = PALETTES.flatMap((p) => p.colors);
 
 export function createMenuScene() {
@@ -101,9 +101,12 @@ export function createMenuScene() {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = grad;
-      ctx.font = `900 ${Math.min(112, vw * 0.15)}px ${FONT}`;
+      ctx.font = `900 ${Math.min(104, vw * 0.14)}px ${FONT_TITLE}`;
       ctx.fillText('PRISMA', 0, 0);
       ctx.restore();
+
+      // Bloom sur les nébuleuses + le titre (le texte informatif reste net).
+      Render.bloom();
 
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

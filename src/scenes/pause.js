@@ -2,6 +2,7 @@
 // est figé ; la scène de jeu gère la bascule via la touche P / Échap.
 
 import { CONFIG } from '../config.js';
+import { FONT, FONT_TITLE } from '../ui/fonts.js';
 
 export function renderPause(R) {
   const ctx = R.ctx;
@@ -14,11 +15,11 @@ export function renderPause(R) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = CONFIG.textPrimary;
-  ctx.font = '800 56px "Segoe UI", system-ui, sans-serif';
+  ctx.font = `900 56px ${FONT_TITLE}`;
   ctx.fillText('PAUSE', vw / 2, vh / 2 - 20);
 
   ctx.fillStyle = CONFIG.textSecondary;
-  ctx.font = '500 18px "Segoe UI", system-ui, sans-serif';
+  ctx.font = `600 18px ${FONT}`;
   ctx.fillText('P / Échap / clic : reprendre', vw / 2, vh / 2 + 34);
   ctx.fillText('O : options', vw / 2, vh / 2 + 62);
 }

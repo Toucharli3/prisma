@@ -4,6 +4,7 @@
 
 import { CONFIG } from '../config.js';
 import { clamp, TAU, HALF_PI, hexToRgb, rgbCss } from './math.js';
+import { FONT } from '../ui/fonts.js';
 
 export const Render = {
   canvas: null,
@@ -45,6 +46,7 @@ export const Render = {
     this.canvas.height = Math.max(1, Math.floor(this.viewH * this.dpr));
     this.canvas.style.width = this.viewW + 'px';
     this.canvas.style.height = this.viewH + 'px';
+    this._bloomA = null; // tampons de bloom redimensionnés à la volée
     // Le pattern doit être recréé après changement de contexte/taille.
     if (this._gridTile) this._gridPattern = this.ctx.createPattern(this._gridTile, 'repeat');
     this._buildVignette();
@@ -167,6 +169,67 @@ export const Render = {
   // Ferme la frame : repasse en espace écran pour dessiner l'UI.
   end() {
     this.ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+  },
+
+  // --- Bloom plein écran ---
+  // Sans shader, on obtient un bloom convaincant en trois temps :
+  //   1. réduction en 1/4 (le filtrage bilinéaire fournit déjà la moitié du flou)
+  //   2. SEUIL : on multiplie l'image par elle-même, ce qui donne ≈ couleur². Le
+  //      fond sombre s'écrase vers le noir, les néons saturés restent — c'est
+  //      l'équivalent d'un « bright pass » sans avoir à lire un seul pixel.
+  //   3. seconde réduction + flou léger, puis recomposition en additif.
+  // Tout se passe sur des tampons minuscules : le coût ne dépend pas du nombre
+  // d'entités à l'écran, seulement de la taille de la fenêtre.
+  _ensureBloomBuffers() {
+    const w = Math.max(1, Math.floor(this.viewW / 4));
+    const h = Math.max(1, Math.floor(this.viewH / 4));
+    if (this._bloomA && this._bloomA.width === w && this._bloomA.height === h) return;
+    this._bloomA = document.createElement('canvas');
+    this._bloomA.width = w;
+    this._bloomA.height = h;
+    this._bloomAc = this._bloomA.getContext('2d');
+    this._bloomB = document.createElement('canvas');
+    this._bloomB.width = Math.max(1, w >> 1);
+    this._bloomB.height = Math.max(1, h >> 1);
+    this._bloomBc = this._bloomB.getContext('2d');
+  },
+
+  // À appeler en espace écran, après le monde et AVANT le HUD (sinon le texte
+  // d'interface bave). Sans effet en mode perf.
+  bloom() {
+    if (CONFIG.perf || !CONFIG.bloom.enabled) return;
+    this._ensureBloomBuffers();
+    const A = this._bloomAc;
+    const B = this._bloomBc;
+    const aw = this._bloomA.width;
+    const ah = this._bloomA.height;
+    const bw = this._bloomB.width;
+    const bh = this._bloomB.height;
+
+    A.globalCompositeOperation = 'source-over';
+    A.clearRect(0, 0, aw, ah);
+    A.drawImage(this.canvas, 0, 0, aw, ah);
+    const passes = CONFIG.bloom.thresholdPasses | 0;
+    if (passes > 0) {
+      A.globalCompositeOperation = 'multiply';
+      // n multiplications = couleur^(2ⁿ) : chaque passe écrase davantage le fond.
+      for (let i = 0; i < passes; i++) A.drawImage(this._bloomA, 0, 0);
+      A.globalCompositeOperation = 'source-over';
+    }
+
+    B.clearRect(0, 0, bw, bh);
+    B.filter = 'blur(2px)';
+    B.drawImage(this._bloomA, 0, 0, bw, bh);
+    B.filter = 'none';
+
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = CONFIG.bloom.strength;
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(this._bloomB, 0, 0, this.viewW, this.viewH);
+    ctx.restore();
   },
 
   // Post-traitement plein écran (vignette + scanlines, sauf mode perf).
@@ -459,7 +522,7 @@ export const Render = {
   // Overlay debug FPS (espace écran).
   drawFPS(fps) {
     const ctx = this.ctx;
-    ctx.font = '600 14px "Segoe UI", system-ui, sans-serif';
+    ctx.font = `700 14px ${FONT}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
     ctx.fillStyle = CONFIG.textSecondary;

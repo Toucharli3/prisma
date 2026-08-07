@@ -4,8 +4,8 @@
 import { CONFIG } from '../config.js';
 import { hexA, TAU, fmtInt } from '../engine/math.js';
 import { roundRect, fillBar } from './widgets.js';
+import { FONT } from './fonts.js';
 
-const FONT = '"Segoe UI", system-ui, sans-serif';
 
 function drawColorGauge(ctx, x, y, w, h, percent, palette) {
   roundRect(ctx, x, y, w, h, h / 2);
@@ -55,10 +55,17 @@ export function drawHud(R, world) {
   if (world.overchargeT > 0) ctx.fillText(`⚡ SURCHARGE ${world.overchargeT.toFixed(1)}s`, vw / 2, gy + gh / 2);
   else ctx.fillText(charged ? '✦ PRISMA PRÊT — R ✦' : `PRISMA ${Math.floor(world.colorfield.percent * 100)}%`, vw / 2, gy + gh / 2);
 
-  ctx.fillStyle = CONFIG.textSecondary;
+  // Ligne biome / palier / niveau, posée sur un fond assombri : au-dessus du
+  // champ de couleur saturé, le gris secondaire devenait illisible.
+  const info = `${world.palette.name.toUpperCase()} · PALIER ${world.tier + 1} · NIV ${world.level}`;
   ctx.font = `700 12px ${FONT}`;
+  const iw = ctx.measureText(info).width + 20;
+  ctx.fillStyle = 'rgba(8,8,16,0.55)';
+  roundRect(ctx, vw / 2 - iw / 2, gy + gh + 4, iw, 19, 9.5);
+  ctx.fill();
+  ctx.fillStyle = CONFIG.textPrimary;
   ctx.textBaseline = 'top';
-  ctx.fillText(`${world.palette.name.toUpperCase()} · PALIER ${world.tier + 1} · NIV ${world.level}`, vw / 2, gy + gh + 7);
+  ctx.fillText(info, vw / 2, gy + gh + 8);
 
   // Avertissement de pic (télégraphe) + flash de palier.
   if (world.telegraph) {

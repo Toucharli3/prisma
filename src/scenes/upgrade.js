@@ -8,6 +8,7 @@ import { Audio } from '../engine/audio.js';
 import { CONFIG } from '../config.js';
 import { hexA, TAU } from '../engine/math.js';
 import { roundRect, wrapText } from '../ui/widgets.js';
+import { FONT, FONT_TITLE } from '../ui/fonts.js';
 
 export function createUpgradeOverlay(world, choices, onPick) {
   let sel = 0;
@@ -73,15 +74,15 @@ export function createUpgradeOverlay(world, choices, onPick) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = CONFIG.textPrimary;
-    ctx.font = '700 22px "Segoe UI", system-ui, sans-serif';
+    ctx.font = `700 22px ${FONT}`;
     ctx.fillText(c.name, cx, r.y + 132);
 
     ctx.fillStyle = CONFIG.textSecondary;
-    ctx.font = '500 15px "Segoe UI", system-ui, sans-serif';
+    ctx.font = `600 15px ${FONT}`;
     wrapText(ctx, c.desc, cx, r.y + 172, r.w - 36, 22);
 
     ctx.fillStyle = selected ? c.color : CONFIG.textSecondary;
-    ctx.font = '700 14px "Segoe UI", system-ui, sans-serif';
+    ctx.font = `700 14px ${FONT}`;
     ctx.fillText(`[ ${i + 1} ]`, cx, r.y + r.h - 26);
     ctx.restore();
   }
@@ -141,10 +142,10 @@ export function createUpgradeOverlay(world, choices, onPick) {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = CONFIG.textPrimary;
-      ctx.font = '800 36px "Segoe UI", system-ui, sans-serif';
+      ctx.font = `900 36px ${FONT_TITLE}`;
       ctx.fillText('MONTÉE DE NIVEAU', vw / 2, rects[0].y - 56);
       ctx.fillStyle = CONFIG.textSecondary;
-      ctx.font = '500 16px "Segoe UI", system-ui, sans-serif';
+      ctx.font = `600 16px ${FONT}`;
       ctx.fillText('Choisis une amélioration', vw / 2, rects[0].y - 26);
 
       for (let i = 0; i < choices.length; i++) drawCard(ctx, rects[i], choices[i], i, i === sel);
