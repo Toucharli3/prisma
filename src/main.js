@@ -17,9 +17,11 @@ import { createMenuScene } from './scenes/menu.js';
 import { createGameScene } from './scenes/game.js';
 import { createGameOverScene } from './scenes/gameover.js';
 import { waitForFonts } from './ui/fonts.js';
+import { PostFX } from './engine/postfx.js';
 
 const canvas = document.getElementById('game');
 Render.init(canvas);
+PostFX.init(canvas); // chaîne GPU par-dessus le canvas 2D (silencieux si indispo)
 Input.init(canvas);
 Audio.init(); // contexte créé au 1er geste utilisateur
 Save.load(); // méta-progression + réglages
@@ -60,6 +62,10 @@ const loop = createLoop({
       Render.drawFade(app._fade);
     }
     if (CONFIG.debug) Render.drawFPS(loop.fps);
+    // Dernière étape : la frame 2D complète part au GPU pour bloom, aberration,
+    // vignette et scanlines. Renvoie false si la chaîne est coupée -> on laisse
+    // alors voir le canvas 2D nu.
+    if (PostFX.available) PostFX.setVisible(PostFX.present());
   },
 });
 

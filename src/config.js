@@ -17,6 +17,25 @@ export const CONFIG = {
   // écrasent le diffus et ne gardent que les sources vraiment vives.
   bloom: { enabled: true, strength: 0.26, thresholdPasses: 2 },
 
+  // Chaîne GPU (engine/postfx.js). Quand WebGL2 est disponible, elle REMPLACE
+  // le bloom Canvas 2D ci-dessus ainsi que la vignette et les scanlines : le
+  // seuil y est calculé sur la luminance (et non canal par canal), ce qui
+  // sépare enfin une grande nappe colorée d'un projectile lumineux.
+  postfx: {
+    enabled: true,
+    threshold: 0.68, // luminance à partir de laquelle un pixel « brille »
+    soft: 0.28, // genou : évite une bascule franche et scintillante
+    radius: 1.7, // écartement des prises du flou (en texels du tampon réduit)
+    strength: 0.8, // dosage du bloom ajouté à la scène
+    // Décalage RVB en ESPACE UV : off = d·aberration·r², soit aberration/4 dans
+    // les coins. 0.012 ≈ 3 px sur 1280 — au-delà, le HUD se dédouble et les
+    // canaux, venant d'endroits différents, virent au vert.
+    aberration: 0.007,
+    vignette: 0.5,
+    scanline: 0.05,
+    saturation: 1.12, // le monde « reprend des couleurs »
+  },
+
   // --- Juice / options ---
   maxShake: 24, // amplitude max du screen shake (px)
   comboWindow: 2.4, // délai (s) avant reset du combo

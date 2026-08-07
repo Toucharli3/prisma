@@ -5,6 +5,7 @@
 import { CONFIG } from '../config.js';
 import { clamp, TAU, HALF_PI, hexToRgb, rgbCss } from './math.js';
 import { FONT } from '../ui/fonts.js';
+import { PostFX } from './postfx.js';
 
 export const Render = {
   canvas: null,
@@ -197,6 +198,7 @@ export const Render = {
   // À appeler en espace écran, après le monde et AVANT le HUD (sinon le texte
   // d'interface bave). Sans effet en mode perf.
   bloom() {
+    if (PostFX.available && CONFIG.postfx.enabled) return; // la chaîne GPU s'en charge
     if (CONFIG.perf || !CONFIG.bloom.enabled) return;
     this._ensureBloomBuffers();
     const A = this._bloomAc;
@@ -234,6 +236,7 @@ export const Render = {
 
   // Post-traitement plein écran (vignette + scanlines, sauf mode perf).
   postFx() {
+    if (PostFX.available && CONFIG.postfx.enabled) return; // vignette + scanlines faites en shader
     const ctx = this.ctx;
     if (this._vignette) ctx.drawImage(this._vignette, 0, 0);
     if (!CONFIG.perf && this._scanPattern) {

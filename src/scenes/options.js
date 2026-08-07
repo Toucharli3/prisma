@@ -9,6 +9,7 @@ import { CONFIG } from '../config.js';
 import { clamp } from '../engine/math.js';
 import { roundRect, fillBar } from '../ui/widgets.js';
 import { FONT } from '../ui/fonts.js';
+import { PostFX } from '../engine/postfx.js';
 
 
 export function createOptionsOverlay(onClose, onQuitMenu) {
@@ -17,7 +18,20 @@ export function createOptionsOverlay(onClose, onQuitMenu) {
   const items = [
     { label: 'Visée', value: () => (CONFIG.aimMode === 'auto' ? 'Automatique' : 'Souris'), change: () => (CONFIG.aimMode = CONFIG.aimMode === 'auto' ? 'mouse' : 'auto') },
     { label: 'Mode performance', value: () => (CONFIG.perf ? 'Activé' : 'Désactivé'), change: () => (CONFIG.perf = !CONFIG.perf) },
-    { label: 'Bloom', value: () => (CONFIG.bloom.enabled ? 'Activé' : 'Désactivé'), change: () => (CONFIG.bloom.enabled = !CONFIG.bloom.enabled) },
+    // Quand la chaîne GPU tourne, c'est elle qui porte le bloom : on règle son
+    // intensité plutôt que d'exposer deux réglages qui se recouvrent.
+    PostFX.available
+      ? {
+          label: 'Effets GPU',
+          bar: () => CONFIG.postfx.strength / 2,
+          value: () => (CONFIG.postfx.enabled ? `${Math.round(CONFIG.postfx.strength * 100)}%` : 'Désactivés'),
+          change: (d) => {
+            const v = clamp(CONFIG.postfx.strength + d * 0.15, 0, 2);
+            CONFIG.postfx.strength = v;
+            CONFIG.postfx.enabled = v > 0.001;
+          },
+        }
+      : { label: 'Bloom', value: () => (CONFIG.bloom.enabled ? 'Activé' : 'Désactivé'), change: () => (CONFIG.bloom.enabled = !CONFIG.bloom.enabled) },
     { label: 'Volume musique', bar: () => Audio.musicVol, value: () => `${Math.round(Audio.musicVol * 100)}%`, change: (d) => Audio.setMusicVol(clamp(Audio.musicVol + d * 0.1, 0, 1)) },
     { label: 'Volume effets', bar: () => Audio.sfxVol, value: () => `${Math.round(Audio.sfxVol * 100)}%`, change: (d) => Audio.setSfxVol(clamp(Audio.sfxVol + d * 0.1, 0, 1)) },
     { label: 'Son', value: () => (Audio.muted ? 'Muet' : 'Activé'), change: () => Audio.toggleMute() },

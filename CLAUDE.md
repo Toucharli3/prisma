@@ -28,7 +28,12 @@ difficulté, puis une simulation de partie complète. Les seuils y sont explicit
 
 ## Stack
 
-- **Vite** (vanilla, ES modules), **Canvas 2D** uniquement (pas de WebGL/framework).
+- **Vite** (vanilla, ES modules), **zéro dépendance runtime**.
+- **Canvas 2D** pour TOUT le jeu (simulation, entités, HUD) — aucun framework.
+- **WebGL2 uniquement en post-traitement** (`engine/postfx.js`) : la frame 2D
+  finie part en texture pour bloom, aberration, vignette et scanlines. La boucle
+  de jeu l'ignore complètement, et l'absence de WebGL2 fait simplement retomber
+  sur la chaîne Canvas 2D (`Render.bloom` / `Render.postFx`).
 - **Web Audio API** : SFX + musique 100 % procéduraux (aucun fichier externe).
 - **localStorage** pour la sauvegarde.
 
@@ -46,8 +51,9 @@ difficulté, puis une simulation de partie complète. Les seuils y sont explicit
 - `src/config.js` — **toutes** les constantes (DA, palettes, équilibrage,
   directeur, hazards, bombe, burst, élites, évolutions).
 - `src/main.js` — bootstrap, contexte `app`, machine à états des scènes, boucle.
-- `src/engine/` — `loop`, `input` (clavier + souris + manette), `render`,
-  `audio`, `pool`, `grid`, `particles`, `floaters`, `save`, `leaderboard`, `math`.
+- `src/engine/` — `loop`, `input` (clavier + souris + tactile + manette), `render`,
+  `postfx` (chaîne GPU), `audio`, `pool`, `grid`, `particles`, `floaters`, `save`,
+  `leaderboard`, `math`.
 - `src/entities/` — `player`, `enemy`, `bullet`, `orb`, `boss`.
 - `src/systems/` — `director` (rythme sans-fin), `upgrades`, `colorfield`,
   `weapons`, `backdrop`.

@@ -70,6 +70,10 @@ export const Save = {
     CONFIG.aimMode = s.aimMode;
     CONFIG.perf = s.perf;
     CONFIG.bloom.enabled = s.bloom !== false;
+    if (typeof s.postfx === 'number') {
+      CONFIG.postfx.strength = s.postfx;
+      CONFIG.postfx.enabled = s.postfx > 0.001;
+    }
     Audio.setMusicVol(s.music);
     Audio.setSfxVol(s.sfx);
     Audio.setMuted(s.muted);
@@ -81,6 +85,7 @@ export const Save = {
       aimMode: CONFIG.aimMode,
       perf: CONFIG.perf,
       bloom: CONFIG.bloom.enabled,
+      postfx: CONFIG.postfx.enabled ? CONFIG.postfx.strength : 0,
       music: Audio.musicVol,
       sfx: Audio.sfxVol,
       muted: Audio.muted,
