@@ -2,7 +2,7 @@
 // chrono, barre de PV. (Combo & vague ajoutés en Phases 6/8.) Espace écran.
 
 import { CONFIG } from '../config.js';
-import { hexA, TAU } from '../engine/math.js';
+import { hexA, TAU, fmtInt } from '../engine/math.js';
 import { roundRect, fillBar } from './widgets.js';
 
 const FONT = '"Segoe UI", system-ui, sans-serif';
@@ -98,7 +98,7 @@ export function drawHud(R, world) {
   ctx.fillText(`${mm}:${ss.toString().padStart(2, '0')}`, vw - 16, 12);
   ctx.font = `700 13px ${FONT}`;
   ctx.fillStyle = CONFIG.textPrimary;
-  ctx.fillText(`SCORE ${world.score}`, vw - 16, 32);
+  ctx.fillText(`SCORE ${fmtInt(world.score)}`, vw - 16, 32);
 
   // Jauge de dash (bas-centre). Cooldown effectif (Réflexe).
   const dr = 1 - Math.max(0, p.dashCd) / (CONFIG.dash.cooldown * (p.mods.dashCdMul || 1));

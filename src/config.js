@@ -16,24 +16,7 @@ export const CONFIG = {
   score: {
     perKill: 10, // × combo × (1 + profondeur)
     depthBonus: 0.08, // bonus de score par biome de profondeur
-    biomeClear: 500, // bonus à la purification d'un biome (× n° de biome)
     bossKill: 300, // bonus à la mort d'un boss (× n° de biome)
-  },
-
-  // --- Mode sans fin (au-delà de la campagne de 5 biomes) ---
-  // La difficulté ne plafonne PLUS (sauf la vitesse) : PV, DÉGÂTS et densité montent
-  // sans fin -> la mort devient inévitable, la run se termine selon le skill.
-  endless: {
-    hpGrowth: 1.17, // PV ennemis × par biome supplémentaire
-    speedCap: 2.05, // seul plafond (sinon injouable)
-    intervalDecay: 1.06,
-    intervalMin: 0.28,
-    batchEvery: 2,
-    maxAliveCap: 260, // plafond perf (testé OK ~60 fps)
-    killsGrowth: 0.1,
-    // Dégâts ennemis (contact + balles) × damageBase^biome sur TOUS les biomes.
-    // C'est CE qui finit par tuer un joueur optimisé.
-    damageBase: 1.125,
   },
 
   // --- Couleurs de base / UI (DA section 2) ---
@@ -263,38 +246,7 @@ export const CONFIG = {
     ],
   },
 
-  // --- Niveaux (data-driven). Palette = PALETTES[index]. Boss déclenché à
-  // bossTrigger (% de couleur) ; le dernier 1-bossTrigger est gated par le boss. ---
-  // Démarrage doux, montée régulière (la mort doit arriver après plusieurs minutes).
-  levels: [
-    {
-      killsToFull: 34,
-      bossTrigger: 0.78,
-      spawn: { firstDelay: 1.0, interval: 1.05, batch: 3, maxAlive: 70, spawnDist: 720, types: ['triangle', 'triangle', 'square'], hpScale: 1, speedScale: 1 },
-    },
-    {
-      killsToFull: 48,
-      bossTrigger: 0.78,
-      spawn: { firstDelay: 0.8, interval: 0.95, batch: 4, maxAlive: 90, spawnDist: 720, types: ['triangle', 'triangle', 'square', 'pentagon', 'dasher'], hpScale: 1.25, speedScale: 1.06 },
-    },
-    {
-      killsToFull: 62,
-      bossTrigger: 0.78,
-      spawn: { firstDelay: 0.7, interval: 0.85, batch: 4, maxAlive: 110, spawnDist: 740, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter'], hpScale: 1.6, speedScale: 1.12 },
-    },
-    {
-      killsToFull: 78,
-      bossTrigger: 0.78,
-      spawn: { firstDelay: 0.7, interval: 0.76, batch: 5, maxAlive: 135, spawnDist: 760, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'square'], hpScale: 2.0, speedScale: 1.18 },
-    },
-    {
-      killsToFull: 94,
-      bossTrigger: 0.78,
-      spawn: { firstDelay: 0.6, interval: 0.66, batch: 6, maxAlive: 160, spawnDist: 780, types: ['triangle', 'square', 'pentagon', 'dasher', 'splitter', 'triangle'], hpScale: 2.5, speedScale: 1.26 },
-    },
-  ],
-
-  // --- Armes (data-driven). kind: projectile | orbital | nova ---
+  // --- Armes (data-driven). kind: projectile | orbital | nova | chain | beam ---
   weapons: {
     eclat: {
       name: 'Éclat',

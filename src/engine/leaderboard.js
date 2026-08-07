@@ -102,6 +102,11 @@ export const Leaderboard = {
 
   async submit(entry) {
     const e = { name: cleanName(entry.name), score: cleanScore(entry.score), biome: Math.max(1, parseInt(entry.biome) || 1) };
+    // Score nul : rien à soumettre (l'API le refuse et ça polluerait le local).
+    if (e.score <= 0) {
+      const scores = await this.top(10);
+      return { rank: null, scores, online: online === true };
+    }
     const localRank = localInsert({ name: e.name, score: e.score, biome: e.biome }); // secours local (une seule fois)
     try {
       if (SUPA) {

@@ -19,6 +19,6 @@ export function renderPause(R) {
 
   ctx.fillStyle = CONFIG.textSecondary;
   ctx.font = '500 18px "Segoe UI", system-ui, sans-serif';
-  ctx.fillText('P / Échap : reprendre', vw / 2, vh / 2 + 34);
+  ctx.fillText('P / Échap / clic : reprendre', vw / 2, vh / 2 + 34);
   ctx.fillText('O : options', vw / 2, vh / 2 + 62);
 }

@@ -44,6 +44,7 @@ export function createGameScene() {
   let pendingLevels = 0;
   let boss = null;
   let ended = false; // partie terminée (empêche un double gameOver)
+  let pausedByBlur = false; // pause AUTOMATIQUE (perte de focus) vs volontaire
 
   const player = new Player();
   const enemies = new Pool(() => new Enemy(), 96);
@@ -222,6 +223,7 @@ export function createGameScene() {
   // --- Combat ---
   function killEnemy(e) {
     e.alive = false;
+    Audio.kill();
     world.kills++;
     world.combo++;
     world.comboTimer = CONFIG.comboWindow;
@@ -702,6 +704,7 @@ export function createGameScene() {
       pickups.length = 0;
       hazardTimer = CONFIG.hazards.firstDelay;
       bombTimer = CONFIG.bomb.spawnInterval;
+      meteorTimer = 0;
       boss = null;
       world.boss = null;
       director.reset();
@@ -727,9 +730,13 @@ export function createGameScene() {
       pendingLevels = 0;
       pauseOptions = null;
       ended = false;
+      pausedByBlur = false;
     },
 
     update(dt) {
+      // Stick tactile actif uniquement quand le monde tourne (les overlays
+      // récupèrent des taps « purs » pour la navigation).
+      Input.touch.stickEnabled = mode === 'play' || mode === 'levelup';
       if (mode === 'paused') {
         if (pauseOptions) {
           pauseOptions.update(dt);
@@ -737,11 +744,22 @@ export function createGameScene() {
         }
         if (Input.pressed('KeyP', 'Escape')) mode = 'play';
         else if (Input.pressed('KeyO')) pauseOptions = createOptionsOverlay(() => (pauseOptions = null), () => app.gotoMenu());
+        else if (pausedByBlur) {
+          // Pause auto : on AVALE le clic qui rend le focus à la fenêtre, sinon
+          // la partie repartirait par surprise. Les clics suivants reprennent.
+          if (document.hasFocus()) pausedByBlur = false;
+        } else if (Input.mouse.clicked) mode = 'play';
         return;
       }
-      if (mode === 'play' && Input.pressed('KeyP', 'Escape')) {
-        mode = 'paused';
-        return;
+      // Auto-pause à la perte de focus (alt-tab) : évite de mourir pendant que
+      // la partie continue en arrière-plan.
+      if (mode === 'play') {
+        const manual = Input.pressed('KeyP', 'Escape');
+        if (manual || !document.hasFocus()) {
+          mode = 'paused';
+          pausedByBlur = !manual;
+          return;
+        }
       }
       if (mode === 'upgrade') {
         upgrade.update(dt);

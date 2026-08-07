@@ -70,6 +70,10 @@ export class Enemy {
     this.blastRadius = 0;
     this.blastDamage = 0;
     this.explodeReady = false;
+    // Sprites mis en cache par instance (évite de reconstruire la clé de cache
+    // du polySprite à chaque frame pour chaque ennemi).
+    this._spr = null;
+    this._sprFlash = null;
   }
 
   init(def, x, y, hpScale = 1, speedScale = 1, damageScale = 1) {
@@ -121,6 +125,8 @@ export class Enemy {
     this.orbitalCd = 0;
     this.angle = Math.random() * TAU;
     this.rotSpeed = (Math.random() * 2 - 1) * 0.7;
+    this._spr = null;
+    this._sprFlash = null;
   }
 
   // Promeut l'ennemi en ÉLITE (affixe de config.elites.affixes).
@@ -137,6 +143,8 @@ export class Enemy {
     if (affix.xp) this.xp *= affix.xp;
     this.deathBullets = affix.deathBullets || 0;
     this.deathBulletSpeed = affix.deathBulletSpeed || 0;
+    this._spr = null; // le rayon a pu changer (Colosse)
+    this._sprFlash = null;
   }
 
   update(dt, target) {
@@ -287,20 +295,14 @@ export class Enemy {
       R.drawSprite(R.softDot(this.eliteAura, Math.round(this.radius * 1.9)), ix, iy, 0, pulse, 0.65);
       R.normal();
     }
-    const spr = R.polySprite(
-      this.sides,
-      this.radius,
-      CONFIG.enemyGrayA,
-      CONFIG.enemyGrayB,
-      CONFIG.textPrimary,
-      CONFIG.enemyGrayA,
-      1.7
-    );
-    R.drawSprite(spr, ix, iy, this.angle);
+    if (!this._spr) {
+      this._spr = R.polySprite(this.sides, this.radius, CONFIG.enemyGrayA, CONFIG.enemyGrayB, CONFIG.textPrimary, CONFIG.enemyGrayA, 1.7);
+      this._sprFlash = R.polySprite(this.sides, this.radius, '#ffffff', '#ffffff', '#ffffff', '#ffffff', 1.2);
+    }
+    R.drawSprite(this._spr, ix, iy, this.angle);
 
     if (this.hitFlash > 0) {
-      const f = R.polySprite(this.sides, this.radius, '#ffffff', '#ffffff', '#ffffff', '#ffffff', 1.2);
-      R.drawSprite(f, ix, iy, this.angle, 1, Math.min(1, this.hitFlash / 0.08));
+      R.drawSprite(this._sprFlash, ix, iy, this.angle, 1, Math.min(1, this.hitFlash / 0.08));
     }
   }
 }

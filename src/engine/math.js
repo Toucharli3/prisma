@@ -6,6 +6,9 @@ export const TAU = Math.PI * 2;
 export const HALF_PI = Math.PI / 2;
 
 export const clamp = (v, lo, hi) => (v < lo ? lo : v > hi ? hi : v);
+
+// Entier avec séparateur de milliers (espace fine insécable) : 1 234 567.
+export const fmtInt = (n) => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const invLerp = (a, b, v) => (b - a === 0 ? 0 : (v - a) / (b - a));
 export const sign = (v) => (v < 0 ? -1 : v > 0 ? 1 : 0);

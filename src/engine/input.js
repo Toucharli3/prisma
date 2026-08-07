@@ -1,9 +1,18 @@
-// input.js — clavier (ZQSD / WASD / flèches), souris et manette (gamepad).
+// input.js — clavier (ZQSD / WASD / flèches), souris, tactile et manette.
 // Expose un vecteur de déplacement normalisé et une détection « justPressed »
 // pour la navigation des menus.
+//
+// Tactile : un stick virtuel apparaît là où le pouce se pose (moitié gauche de
+// l'écran, seulement quand la scène de jeu l'active via touch.stickEnabled) ;
+// des boutons virtuels (dash/bombe/burst/pause) sont mappés sur les touches
+// clavier correspondantes ; tout autre tap est traité comme un clic souris
+// (menus, cartes d'upgrade, reprise de pause).
 
 const keys = new Set();
 const justPressed = new Set();
+
+const STICK_RADIUS = 52; // rayon (px) de la course du stick virtuel
+const STICK_DEADZONE = 8;
 
 const MOVE = {
   up: ['KeyW', 'KeyZ', 'ArrowUp'],
@@ -21,6 +30,12 @@ const anyDown = (codes) => {
 
 export const Input = {
   mouse: { x: 0, y: 0, down: false, clicked: false },
+  // seen : au moins un contact tactile depuis le lancement -> le HUD affiche
+  // les contrôles virtuels. stickEnabled : posé par la scène de jeu (les
+  // overlays/menus reçoivent des taps « purs »).
+  touch: { seen: false, stickEnabled: false, id: -1, baseX: 0, baseY: 0, knobX: 0, knobY: 0, vx: 0, vy: 0 },
+  _btnTouch: {}, // identifier -> code de la touche virtuelle maintenue
+  _touchButtons: null,
   _gamepadIndex: null,
 
   init(canvas) {
@@ -55,6 +70,106 @@ export const Input = {
     window.addEventListener('gamepaddisconnected', () => {
       this._gamepadIndex = null;
     });
+
+    // --- Tactile ---
+    window.addEventListener('resize', () => (this._touchButtons = null));
+    canvas.addEventListener('touchstart', (e) => this._onTouchStart(e), { passive: false });
+    canvas.addEventListener('touchmove', (e) => this._onTouchMove(e), { passive: false });
+    canvas.addEventListener('touchend', (e) => this._onTouchEnd(e), { passive: false });
+    canvas.addEventListener('touchcancel', (e) => this._onTouchEnd(e), { passive: false });
+  },
+
+  // Boutons virtuels (positions écran CSS px), recalculés au resize.
+  touchButtons() {
+    if (!this._touchButtons) {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      this._touchButtons = [
+        { code: 'Space', label: 'DASH', x: w - 66, y: h - 74, r: 38 },
+        { code: 'KeyE', label: 'BOMBE', x: w - 156, y: h - 122, r: 28 },
+        { code: 'KeyR', label: 'BURST', x: w - 66, y: h - 176, r: 28 },
+        { code: 'Escape', label: 'II', x: w - 30, y: 74, r: 20 },
+      ];
+    }
+    return this._touchButtons;
+  },
+
+  _hitTouchButton(x, y) {
+    for (const b of this.touchButtons()) {
+      const dx = x - b.x;
+      const dy = y - b.y;
+      const r = b.r + 8; // marge de tolérance
+      if (dx * dx + dy * dy <= r * r) return b;
+    }
+    return null;
+  },
+
+  _onTouchStart(e) {
+    e.preventDefault(); // supprime les clics souris synthétiques et le scroll
+    this.touch.seen = true;
+    for (const t of e.changedTouches) {
+      const x = t.clientX;
+      const y = t.clientY;
+      const btn = this._hitTouchButton(x, y);
+      if (btn) {
+        justPressed.add(btn.code);
+        keys.add(btn.code);
+        this._btnTouch[t.identifier] = btn.code;
+      } else if (this.touch.stickEnabled && this.touch.id < 0 && x < window.innerWidth * 0.55) {
+        // Le stick naît là où le pouce se pose.
+        this.touch.id = t.identifier;
+        this.touch.baseX = this.touch.knobX = x;
+        this.touch.baseY = this.touch.knobY = y;
+        this.touch.vx = 0;
+        this.touch.vy = 0;
+      } else {
+        // Tap = clic (menus, cartes d'upgrade, reprise de pause).
+        this.mouse.x = x;
+        this.mouse.y = y;
+        this.mouse.down = true;
+        this.mouse.clicked = true;
+      }
+    }
+  },
+
+  _onTouchMove(e) {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier !== this.touch.id) continue;
+      let dx = t.clientX - this.touch.baseX;
+      let dy = t.clientY - this.touch.baseY;
+      const d = Math.hypot(dx, dy);
+      if (d > STICK_RADIUS) {
+        dx *= STICK_RADIUS / d;
+        dy *= STICK_RADIUS / d;
+      }
+      this.touch.knobX = this.touch.baseX + dx;
+      this.touch.knobY = this.touch.baseY + dy;
+      if (d > STICK_DEADZONE) {
+        this.touch.vx = dx / STICK_RADIUS;
+        this.touch.vy = dy / STICK_RADIUS;
+      } else {
+        this.touch.vx = 0;
+        this.touch.vy = 0;
+      }
+    }
+  },
+
+  _onTouchEnd(e) {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === this.touch.id) {
+        this.touch.id = -1;
+        this.touch.vx = 0;
+        this.touch.vy = 0;
+      }
+      const code = this._btnTouch[t.identifier];
+      if (code) {
+        keys.delete(code);
+        delete this._btnTouch[t.identifier];
+      }
+    }
+    if (e.touches.length === 0) this.mouse.down = false;
   },
 
   isDown(code) {
@@ -67,7 +182,7 @@ export const Input = {
     return false;
   },
 
-  // Vecteur de déplacement normalisé (clavier + stick gauche manette).
+  // Vecteur de déplacement normalisé (clavier + stick manette + stick tactile).
   moveVector(out) {
     let x = 0;
     let y = 0;
@@ -83,6 +198,9 @@ export const Input = {
       if (Math.abs(ax) > 0.2) x += ax;
       if (Math.abs(ay) > 0.2) y += ay;
     }
+
+    x += this.touch.vx;
+    y += this.touch.vy;
 
     const len = Math.hypot(x, y);
     if (len > 1) {

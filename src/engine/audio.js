@@ -63,6 +63,14 @@ export const Audio = {
     for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     this._noise = buf;
 
+    // Onglet caché : on suspend le contexte (sinon la musique hachée continue
+    // en arrière-plan, le scheduler setTimeout étant throttlé à ~1s).
+    document.addEventListener('visibilitychange', () => {
+      if (!this.ctx) return;
+      if (document.hidden) this.ctx.suspend();
+      else this.ctx.resume();
+    });
+
     this._nextNoteTime = ctx.currentTime + 0.1;
     this._scheduleMusic();
   },
@@ -265,7 +273,8 @@ export const Audio = {
   _scheduleMusic() {
     if (!this.ctx) return;
     while (this._nextNoteTime < this.ctx.currentTime + 0.12) {
-      this._playStep(this._step, this._nextNoteTime);
+      // Muet ou volume nul : on avance le temps sans créer de nœuds (économie CPU).
+      if (!this.muted && this.musicVol > 0.001) this._playStep(this._step, this._nextNoteTime);
       this._nextNoteTime += this._stepDur;
       this._step = (this._step + 1) % 16;
     }

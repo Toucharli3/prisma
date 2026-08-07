@@ -23,6 +23,8 @@ export function createDirector() {
     phase: 'build',
     spawnTimer: 0,
     _peakDone: false,
+    _typesCache: null,
+    _typesTier: -1,
 
     reset() {
       this.tier = 0;
@@ -30,14 +32,21 @@ export function createDirector() {
       this.phase = 'build';
       this.spawnTimer = 1.2;
       this._peakDone = false;
+      this._typesCache = null;
+      this._typesTier = -1;
     },
 
-    // Types d'ennemis débloqués au palier courant.
+    // Types d'ennemis débloqués au palier courant (mis en cache par palier :
+    // appelé à chaque batch de spawn).
     availableTypes() {
-      const u = CONFIG.director.typeUnlock;
-      const out = [];
-      for (const k in u) if (+k <= this.tier) out.push(...u[k]);
-      return out.length ? out : ['triangle'];
+      if (this._typesTier !== this.tier) {
+        const u = CONFIG.director.typeUnlock;
+        const out = [];
+        for (const k in u) if (+k <= this.tier) out.push(...u[k]);
+        this._typesCache = out.length ? out : ['triangle'];
+        this._typesTier = this.tier;
+      }
+      return this._typesCache;
     },
 
     // Multiplicateurs de difficulté pilotés par le TEMPS (m = minutes).

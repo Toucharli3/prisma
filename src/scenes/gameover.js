@@ -7,6 +7,7 @@ import { Audio } from '../engine/audio.js';
 import { Save } from '../engine/save.js';
 import { Leaderboard } from '../engine/leaderboard.js';
 import { CONFIG } from '../config.js';
+import { fmtInt } from '../engine/math.js';
 
 const FONT = '"Segoe UI", system-ui, sans-serif';
 
@@ -38,7 +39,7 @@ export function createGameOverScene(stats = {}) {
       t += dt;
       if (t > 0.6) {
         if (app.input.confirmPressed()) app.startGame();
-        else if (app.input.pressed('Escape', 'KeyM')) app.gotoMenu();
+        else if (app.input.pressed('Escape')) app.gotoMenu(); // (pas KeyM : réservé au mute global)
       }
     },
 
@@ -60,7 +61,7 @@ export function createGameOverScene(stats = {}) {
 
       ctx.fillStyle = CONFIG.textPrimary;
       ctx.font = `800 30px ${FONT}`;
-      ctx.fillText(`Score ${stats.score ?? 0}`, vw / 2, vh * 0.25);
+      ctx.fillText(`Score ${fmtInt(stats.score ?? 0)}`, vw / 2, vh * 0.25);
       if (meta.newHighScore) {
         ctx.fillStyle = CONFIG.player.glowColor;
         ctx.font = `700 16px ${FONT}`;
