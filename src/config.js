@@ -17,6 +17,13 @@ export const CONFIG = {
   // écrasent le diffus et ne gardent que les sources vraiment vives.
   bloom: { enabled: true, strength: 0.26, thresholdPasses: 2 },
 
+  // Arrêt sur image (« hitstop ») : durée de gel du monde selon l'impact. Très
+  // court par construction — au-delà de ~0.2 s le jeu paraît saccadé.
+  hitstop: { enabled: true, eliteKill: 0.045, bomb: 0.07, burst: 0.11, bossHurt: 0.05, bossKill: 0.2, playerHurt: 0.06 },
+
+  // Vibration manette (Gamepad Haptics). Ignorée si la manette ne la gère pas.
+  rumble: { enabled: true },
+
   // Chaîne GPU (engine/postfx.js). Quand WebGL2 est disponible, elle REMPLACE
   // le bloom Canvas 2D ci-dessus ainsi que la vignette et les scanlines : le
   // seuil y est calculé sur la luminance (et non canal par canal), ce qui

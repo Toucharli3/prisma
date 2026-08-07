@@ -45,6 +45,14 @@ export function createGameScene() {
   let boss = null;
   let ended = false; // partie terminée (empêche un double gameOver)
   let pausedByBlur = false; // pause AUTOMATIQUE (perte de focus) vs volontaire
+  // Arrêt sur image : le monde se fige quelques frames sur les gros impacts.
+  // C'est le réglage de « game feel » le plus rentable du genre — sans lui, un
+  // coup énorme et un coup ordinaire se ressemblent.
+  let hitstop = 0;
+  const addHitstop = (t) => {
+    if (!CONFIG.hitstop.enabled) return;
+    hitstop = Math.max(hitstop, t);
+  };
 
   const player = new Player();
   const enemies = new Pool(() => new Enemy(), 96);
@@ -106,6 +114,8 @@ export function createGameScene() {
     player.hp = Math.min(player.maxHp, player.hp + player.maxHp * CONFIG.bomb.heal);
     player.inv = Math.max(player.inv, 0.6);
     Render.addShake(0.8);
+    addHitstop(CONFIG.hitstop.bomb);
+    Input.rumble(0.7, 220);
     Audio.nova();
   }
 
@@ -132,6 +142,8 @@ export function createGameScene() {
     spawnRing(player.x, player.y, pb.radius * 0.7, world.palette.colors[1], 7);
     spawnRing(player.x, player.y, pb.radius * 0.45, world.palette.colors[2], 5);
     Render.addShake(0.9);
+    addHitstop(CONFIG.hitstop.burst);
+    Input.rumble(1, 320);
     Audio.victory();
   }
 
@@ -171,6 +183,10 @@ export function createGameScene() {
   world.onBossEnrage = () => {
     Audio.bossSpawn();
     Render.addShake(0.5);
+    // Gel sur le passage en phase 2 : le moment doit se REMARQUER. (Pas sur
+    // chaque coup porté au boss, sinon le jeu bégaierait en permanence.)
+    addHitstop(CONFIG.hitstop.bossHurt);
+    Input.rumble(0.8, 300);
   };
   world.onTierUp = (tier) => {
     world.palette = PALETTES[tier % PALETTES.length];
@@ -247,6 +263,8 @@ export function createGameScene() {
       colorfield.addCharge(CONFIG.elites.prismaFill);
       if (world.rng() < CONFIG.elites.dropChance) spawnPickup(world.rng() < 0.5 ? 'bomb' : 'heal', e.x, e.y);
       spawnRing(e.x, e.y, e.radius * 5, e.eliteAura, 4);
+      addHitstop(CONFIG.hitstop.eliteKill);
+      Input.rumble(0.22, 90);
     }
 
     if (e.splitInto > 0 && e.splitType && enemies.count < CONFIG.director.maxAliveCap) {
@@ -267,6 +285,8 @@ export function createGameScene() {
   function playerHurt() {
     Audio.hit();
     Render.addShake(0.3);
+    addHitstop(CONFIG.hitstop.playerHurt);
+    Input.rumble(0.55, 160);
   }
   function killBoss() {
     const bx = boss.x;
@@ -281,6 +301,8 @@ export function createGameScene() {
     boss = null;
     world.boss = null;
     Render.addShake(0.85);
+    addHitstop(CONFIG.hitstop.bossKill); // le temps s'arrête : le boss tombe
+    Input.rumble(1, 420);
     Audio.bossDeath();
   }
   function damageBoss(dmg) {
@@ -731,6 +753,7 @@ export function createGameScene() {
       pauseOptions = null;
       ended = false;
       pausedByBlur = false;
+      hitstop = 0;
     },
 
     update(dt) {
@@ -763,6 +786,11 @@ export function createGameScene() {
       }
       if (mode === 'upgrade') {
         upgrade.update(dt);
+        return;
+      }
+      // Gel d'impact : le monde s'arrête, mais le timer continue de courir.
+      if (hitstop > 0) {
+        hitstop -= dt;
         return;
       }
       if (mode === 'levelup') {

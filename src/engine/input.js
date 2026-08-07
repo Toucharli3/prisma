@@ -8,6 +8,8 @@
 // clavier correspondantes ; tout autre tap est traité comme un clic souris
 // (menus, cartes d'upgrade, reprise de pause).
 
+import { CONFIG } from '../config.js';
+
 const keys = new Set();
 const justPressed = new Set();
 
@@ -243,6 +245,20 @@ export const Input = {
         keys.delete(code);
       }
       this._padWas[btn] = down;
+    }
+  },
+
+  // Vibration manette (Gamepad Haptics). Silencieuse si non gérée par la
+  // manette ou le navigateur — aucun test de compatibilité à faire côté appelant.
+  rumble(strength = 0.5, ms = 150) {
+    if (!CONFIG.rumble.enabled) return;
+    const gp = this._gamepad();
+    const act = gp && gp.vibrationActuator;
+    if (!act || !act.playEffect) return;
+    try {
+      act.playEffect('dual-rumble', { duration: ms, strongMagnitude: strength, weakMagnitude: strength * 0.6 });
+    } catch {
+      /* effet non géré : on ignore */
     }
   },
 
